@@ -137,10 +137,15 @@ STDAPI DllRegisterServer()
 
   // LXF: header is 'LEITCH\0\0vvvvssss' where \0 is null, vvvv is header
   // version and ssss is header size (little endian).
+  chkbytes.push_back(L"0,16,,4C45495443480000000000003C000000"); // old v0 60-byte header
+  chkbytes.push_back(L"0,16,,4C454954434800000100000048000000"); // new v1 72-byte header
+
   RegisterSourceFilter(__uuidof(CLAVSplitterSource),
     MEDIASUBTYPE_LAVLxf,
-    L"0,16,,4C45495443480000000000003C000000",
+    chkbytes,
     L".lxf");
+
+  chkbytes.clear();
 
   // GXF
   RegisterSourceFilter(__uuidof(CLAVSplitterSource),
