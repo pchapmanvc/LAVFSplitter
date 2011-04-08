@@ -135,6 +135,12 @@ STDAPI DllRegisterServer()
 {
   std::list<LPCWSTR> chkbytes;
 
+  // GXF
+  RegisterSourceFilter(__uuidof(CLAVSplitterSource),
+    MEDIASUBTYPE_LAVGxf,
+    L"0,6,,0000000001bc,14,2,,e1e2",
+    L".gxf");
+
   // MKV/WEBM
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_Matroska,
@@ -233,6 +239,7 @@ STDAPI DllUnregisterServer()
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVOgg);
 
   // Current types
+  UnRegisterSourceFilter(MEDIASUBTYPE_LAVGxf);
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVBluRay);
 
   // Do not unregister default MS types, like MEDIASUBTYPE_Avi
