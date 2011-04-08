@@ -135,6 +135,13 @@ STDAPI DllRegisterServer()
 {
   std::list<LPCWSTR> chkbytes;
 
+  // LXF: header is 'LEITCH\0\0vvvvssss' where \0 is null, vvvv is header
+  // version and ssss is header size (little endian).
+  RegisterSourceFilter(__uuidof(CLAVSplitterSource),
+    MEDIASUBTYPE_LAVLxf,
+    L"0,16,,4C45495443480000000000003C000000",
+    L".lxf");
+
   // GXF
   RegisterSourceFilter(__uuidof(CLAVSplitterSource),
     MEDIASUBTYPE_LAVGxf,
@@ -239,6 +246,7 @@ STDAPI DllUnregisterServer()
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVOgg);
 
   // Current types
+  UnRegisterSourceFilter(MEDIASUBTYPE_LAVLxf);
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVGxf);
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVBluRay);
 
