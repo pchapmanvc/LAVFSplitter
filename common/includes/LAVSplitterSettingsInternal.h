@@ -35,11 +35,11 @@ public:
   bool FormatInfo::operator == (const FormatInfo& rhs) const { return (strName == rhs.strName) || (strName && rhs.strName && (_stricmp(strName, rhs.strName) == 0)); }
 };
 
-// GUID: 72b2c5fa-a7a5-4463-9c1b-9f4749c35c79
-DEFINE_GUID(IID_ILAVFSettingsInternal, 0x72b2c5fa, 0xa7a5, 
-0x4463, 0x9c, 0x1b, 0x9f, 0x47, 0x49, 0xc3, 0x5c, 0x79);
+// GUID: 9536a80d-81cb-4ddf-b1be-0848aa8a5462
+DEFINE_GUID(IID_ILAVFSettingsInternal, 0x9536a80d, 0x81cb, 
+0x4ddf, 0xb1, 0xbe, 0x8, 0x48, 0xaa, 0x8a, 0x54, 0x62);
 
-[uuid("72b2c5fa-a7a5-4463-9c1b-9f4749c35c79")]
+[uuid("9536a80d-81cb-4ddf-b1be-0848aa8a5462")]
 interface ILAVFSettingsInternal : public ILAVFSettings
 {
   // Query if the current filter graph requires VC1 Correction

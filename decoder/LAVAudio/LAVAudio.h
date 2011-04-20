@@ -50,7 +50,7 @@
 #define CODEC_ID_PCM_UxxLE (CodecID)0x19004
 #define CODEC_ID_PCM_QTRAW (CodecID)0x19005
 
-#define LAVC_AUDIO_REGISTRY_KEY L"Software\\LAV\\Audio"
+#define LAVC_AUDIO_REGISTRY_KEY L"Software\\VCExtras\\Audio"
 #define LAVC_AUDIO_LOG_FILE     L"LAVAudio.txt"
 
 struct WAVEFORMATEX_HDMV_LPCM;
@@ -88,7 +88,7 @@ struct BufferDetails {
 
 struct DTSDecoder;
 
-[uuid("E8E73B6B-4CB3-44A4-BE99-4F7BCB96E491")]
+[uuid("8EF536D6-9AEE-442F-809B-9D97C1DAC687")]
 class CLAVAudio : public CTransformFilter, public ISpecifyPropertyPages, public ILAVAudioSettings, public ILAVAudioStatus
 {
 public:

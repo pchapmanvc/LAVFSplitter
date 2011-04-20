@@ -94,7 +94,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbasd.lib;dsutild.lib;avutil-lav.lib;avcodec-lav.lib;swscale-lav.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbasd.lib;dsutild.lib;avutil-vclav.lib;avcodec-vclav.lib;swscale-vclav.lib</AdditionalDependencies>
       <ModuleDefinitionFile>LAVVideo.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -105,7 +105,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbasd.lib;dsutild.lib;avutil-lav.lib;avcodec-lav.lib;swscale-lav.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbasd.lib;dsutild.lib;avutil-vclav.lib;avcodec-vclav.lib;swscale-vclav.lib</AdditionalDependencies>
       <ModuleDefinitionFile>LAVVideo.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -118,7 +118,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbase.lib;dsutil.lib;avutil-lav.lib;avcodec-lav.lib;swscale-lav.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbase.lib;dsutil.lib;avutil-vclav.lib;avcodec-vclav.lib;swscale-vclav.lib</AdditionalDependencies>
       <ModuleDefinitionFile>LAVVideo.def</ModuleDefinitionFile>
     </Link>
     <CustomBuildStep>
@@ -136,7 +136,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbase.lib;dsutil.lib;avutil-lav.lib;avcodec-lav.lib;swscale-lav.lib</AdditionalDependencies>
+      <AdditionalDependencies>advapi32.lib;ole32.lib;gdi32.lib;winmm.lib;user32.lib;oleaut32.lib;shell32.lib;Shlwapi.lib;Comctl32.lib;d3d9.lib;strmbase.lib;dsutil.lib;avutil-vclav.lib;avcodec-vclav.lib;swscale-vclav.lib</AdditionalDependencies>
       <ModuleDefinitionFile>LAVVideo.def</ModuleDefinitionFile>
     </Link>
     <CustomBuildStep>

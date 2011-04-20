@@ -23,9 +23,9 @@
 #include "LAVSplitterSettingsInternal.h"
 
 
-// GUID: a19de2f2-2f74-4927-8436-61129d26c141
-DEFINE_GUID(CLSID_LAVSplitterSettingsProp, 0xa19de2f2, 0x2f74, 
-  0x4927, 0x84, 0x36, 0x61, 0x12, 0x9d, 0x26, 0xc1, 0x41);
+// GUID: 8887d06c-a559-4bdf-bf2b-4b2096ad9110
+DEFINE_GUID(CLSID_LAVSplitterSettingsProp, 0x8887d06c, 0xa559,
+  0x4bdf, 0xbf, 0x2b, 0x4b, 0x20, 0x96, 0xad, 0x91, 0x10);
 
 // {56904B22-091C-4459-A2E6-B1F4F946B55F}
 DEFINE_GUID(CLSID_LAVSplitterFormatsProp,

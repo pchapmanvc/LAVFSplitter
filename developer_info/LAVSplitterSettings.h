@@ -22,11 +22,11 @@
 
 #include <Unknwn.h>       // IUnknown and GUID Macros
 
-// {774A919D-EA95-4A87-8A1E-F48ABE8499C7}
+// {3E114919-E6F7-41EA-91D6-929821EB0993}
 DEFINE_GUID(IID_ILAVFSettings, 
-0x774a919d, 0xea95, 0x4a87, 0x8a, 0x1e, 0xf4, 0x8a, 0xbe, 0x84, 0x99, 0xc7);
+0x3e114919, 0xe6f7, 0x41ea, 0x91, 0xd6, 0x92, 0x98, 0x21, 0xeb, 0x9, 0x93);
 
-[uuid("774A919D-EA95-4A87-8A1E-F48ABE8499C7")]
+[uuid("3E114919-E6F7-41EA-91D6-929821EB0993")]
 interface ILAVFSettings : public IUnknown
 {
   // Switch to Runtime Config mode. This will reset all settings to default, and no changes to the settings will be saved

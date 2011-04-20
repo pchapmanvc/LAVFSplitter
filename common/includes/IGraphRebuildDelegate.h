@@ -19,11 +19,11 @@
 
 #pragma once
 
-// {17989414-C927-4D73-AB6C-19DF37602AC4}
+// {30512B26-9CBC-455D-98CC-6CB9CA3788A5}
 DEFINE_GUID(IID_IGraphRebuildDelegate, 
-0x17989414, 0xc927, 0x4d73, 0xab, 0x6c, 0x19, 0xdf, 0x37, 0x60, 0x2a, 0xc4);
+0x30512b26, 0x9cbc, 0x455d, 0x98, 0xcc, 0x6c, 0xb9, 0xca, 0x37, 0x88, 0xa5);
 
-[uuid("17989414-C927-4D73-AB6C-19DF37602AC4")]
+[uuid("30512B26-9CBC-455D-98CC-6CB9CA3788A5")]
 interface IGraphRebuildDelegate : public IUnknown
 {
   // Called by the splitter to let the player know that a certain pin needs to be rebuild.

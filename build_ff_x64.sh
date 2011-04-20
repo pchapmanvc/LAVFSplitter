@@ -47,14 +47,14 @@ OPTIONS="
 --enable-muxer=spdif \
 --enable-cross-compile \
 --cross-prefix=x86_64-w64-mingw32- --arch=x86_64 --target-os=mingw32 \
---build-suffix=-lav"
+--build-suffix=-vclav"
 
 ./configure --extra-libs="-lwsock32" --extra-cflags="-DPTW32_STATIC_LIB" ${OPTIONS} &&
  
 make -j8 &&
-cp lib*/*-lav-*.dll ../bin_x64 &&
+cp lib*/*-vclav-*.dll ../bin_x64 &&
 cp lib*/*.lib ../bin_x64/lib &&
-cp lib*/*-lav-*.dll ../bin_x64d &&
+cp lib*/*-vclav-*.dll ../bin_x64d &&
 cp lib*/*.lib ../bin_x64d/lib &&
 
 cd ..

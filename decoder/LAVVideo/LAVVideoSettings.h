@@ -19,9 +19,9 @@
 
 #pragma once
 
-// {FA40D6E9-4D38-4761-ADD2-71A9EC5FD32F}
+// {A23F162B-FB82-4F9A-A141-2F6E059E2D9F}
 DEFINE_GUID(IID_ILAVVideoSettings, 
-0xfa40d6e9, 0x4d38, 0x4761, 0xad, 0xd2, 0x71, 0xa9, 0xec, 0x5f, 0xd3, 0x2f);
+0xa23f162b, 0xfb82, 0x4f9a, 0xa1, 0x41, 0x2f, 0x6e, 0x5, 0x9e, 0x2d, 0x9f);
 
 // Codecs supported in the LAV Video configuration
 // Codecs not listed here cannot be turned off. You can request codecs to be added to this list, if you wish.
@@ -124,7 +124,7 @@ typedef enum LAVOutPixFmts {
 } LAVOutPixFmts;
 
 // LAV Audio configuration interface
-[uuid("FA40D6E9-4D38-4761-ADD2-71A9EC5FD32F")]
+[uuid("A23F162B-FB82-4F9A-A141-2F6E059E2D9F")]
 interface ILAVVideoSettings : public IUnknown
 {
   // Switch to Runtime Config mode. This will reset all settings to default, and no changes to the settings will be saved

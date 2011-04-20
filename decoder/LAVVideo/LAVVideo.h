@@ -26,10 +26,10 @@
 #include "H264RandomAccess.h"
 #include "FloatingAverage.h"
 
-#define LAVC_VIDEO_REGISTRY_KEY L"Software\\LAV\\Video"
-#define LAVC_VIDEO_REGISTRY_KEY_FORMATS L"Software\\LAV\\Video\\Formats"
-#define LAVC_VIDEO_REGISTRY_KEY_OUTPUT L"Software\\LAV\\Video\\Output"
-#define LAVC_VIDEO_REGISTRY_KEY_HWACCEL L"Software\\LAV\\Video\\HWAccel"
+#define LAVC_VIDEO_REGISTRY_KEY L"Software\\VCExtras\\Video"
+#define LAVC_VIDEO_REGISTRY_KEY_FORMATS L"Software\\VCExtras\\Video\\Formats"
+#define LAVC_VIDEO_REGISTRY_KEY_OUTPUT L"Software\\VCExtras\\Video\\Output"
+#define LAVC_VIDEO_REGISTRY_KEY_HWACCEL L"Software\\VCExtras\\Video\\HWAccel"
 
 #define LAVC_VIDEO_LOG_FILE     L"LAVVideo.txt"
 
@@ -41,7 +41,7 @@ typedef struct {
   REFERENCE_TIME rtStop;
 } TimingCache;
 
-[uuid("EE30215D-164F-4A92-A4EB-9D4C13390F9F")]
+[uuid("A9C52972-B8A7-4300-A5B5-1D1B37D082B0")]
 class CLAVVideo : public CTransformFilter, public ISpecifyPropertyPages, public ILAVVideoSettings, public ILAVVideoCallback
 {
 public:

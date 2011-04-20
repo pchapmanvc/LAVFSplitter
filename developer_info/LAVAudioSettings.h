@@ -19,13 +19,13 @@
 
 #pragma once
 
-// {4158A22B-6553-45D0-8069-24716F8FF171}
+// {CFEE44C0-7BCA-49EA-8FE1-B52915D5BEA4}
 DEFINE_GUID(IID_ILAVAudioSettings, 
-0x4158a22b, 0x6553, 0x45d0, 0x80, 0x69, 0x24, 0x71, 0x6f, 0x8f, 0xf1, 0x71);
+0xcfee44c0, 0x7bca, 0x49ea, 0x8f, 0xe1, 0xb5, 0x29, 0x15, 0xd5, 0xbe, 0xa4);
 
-// {A668B8F2-BA87-4F63-9D41-768F7DE9C50E}
+// {41A703AD-EAEA-4782-A4C6-E83B57DC0AED}
 DEFINE_GUID(IID_ILAVAudioStatus,
-0xa668b8f2, 0xba87, 0x4f63, 0x9d, 0x41, 0x76, 0x8f, 0x7d, 0xe9, 0xc5, 0xe);
+0x41a703ad, 0xeaea, 0x4782, 0xa4, 0xc6, 0xe8, 0x3b, 0x57, 0xdc, 0xa, 0xed);
 
 // Codecs supported in the LAV Audio configuration
 // Codecs not listed here cannot be turned off. You can request codecs to be added to this list, if you wish.
@@ -74,7 +74,7 @@ typedef enum LAVAudioSampleFormat {
 };
 
 // LAV Audio configuration interface
-[uuid("4158A22B-6553-45D0-8069-24716F8FF171")]
+[uuid("CFEE44C0-7BCA-49EA-8FE1-B52915D5BEA4")]
 interface ILAVAudioSettings : public IUnknown
 {
   // Switch to Runtime Config mode. This will reset all settings to default, and no changes to the settings will be saved
@@ -138,7 +138,7 @@ interface ILAVAudioSettings : public IUnknown
 
 // LAV Audio Status Interface
 // Get the current playback stats
-[uuid("A668B8F2-BA87-4F63-9D41-768F7DE9C50E")]
+[uuid("41A703AD-EAEA-4782-A4C6-E83B57DC0AED")]
 interface ILAVAudioStatus : public IUnknown
 {
   // Check if the given sample format is supported by the current playback chain

@@ -46,14 +46,14 @@ OPTIONS="
 --enable-protocol=file \
 --enable-muxer=spdif \
 --arch=x86 --cpu=i686 --target-os=mingw32 \
---build-suffix=-lav"
+--build-suffix=-vclav"
 
 ./configure --extra-libs="-lwsock32" --extra-cflags="-mmmx -msse -DPTW32_STATIC_LIB" ${OPTIONS} &&
  
 make -j8 &&
-cp lib*/*-lav-*.dll ../bin_Win32 &&
+cp lib*/*-vclav-*.dll ../bin_Win32 &&
 cp lib*/*.lib ../bin_Win32/lib &&
-cp lib*/*-lav-*.dll ../bin_Win32d &&
+cp lib*/*-vclav-*.dll ../bin_Win32d &&
 cp lib*/*.lib ../bin_Win32d/lib &&
 
 cd ..

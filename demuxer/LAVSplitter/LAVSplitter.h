@@ -34,7 +34,7 @@
 #include "LAVSplitterSettingsInternal.h"
 #include "SettingsProp.h"
 
-#define LAVF_REGISTRY_KEY L"Software\\LAV\\Splitter"
+#define LAVF_REGISTRY_KEY L"Software\\VCExtras\\Splitter"
 #define LAVF_REGISTRY_KEY_FORMATS LAVF_REGISTRY_KEY L"\\Formats"
 #define LAVF_LOG_FILE     L"LAVSplitter.txt"
 
@@ -45,7 +45,7 @@ class CLAVInputPin;
 #pragma warning(disable: 4355)
 #endif
 
-[uuid("171252A0-8820-4AFE-9DF8-5C92B2D66B04")]
+[uuid("7FF3294C-7362-43FD-A2BB-B58155087060")]
 class CLAVSplitter 
   : public CBaseFilter
   , public CCritSec
@@ -234,7 +234,7 @@ private:
   IUnknown *m_pSite;
 };
 
-[uuid("B98D13E7-55DB-4385-A33D-09FD1BA26338")]
+[uuid("24B0A1DA-9F7A-40AD-871B-FFE999BA23A3")]
 class CLAVSplitterSource : public CLAVSplitter
 {
 public:
