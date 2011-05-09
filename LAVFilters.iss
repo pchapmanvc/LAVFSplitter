@@ -134,20 +134,15 @@ Source: bin_x64\LAVAudio.ax;           DestDir: {app}\x64; Flags: regserver igno
 Source: bin_x64\LAVSplitter.ax;        DestDir: {app}\x64; Flags: regserver ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64
 Source: bin_x64\LAVVideo.ax;           DestDir: {app}\x64; Flags: regserver ignoreversion restartreplace uninsrestartdelete; Components: lavvideo64
 
-Source: COPYING;                       DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
+Source: COPYING;                       DestDir: {app};     DestName: LICENSE.txt; Flags: ignoreversion restartreplace uninsrestartdelete; Components: lavsplitter64 lavsplitter32
 Source: README.txt;                    DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
+Source: VCREADME.txt;                  DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
 Source: CHANGELOG.txt;                 DestDir: {app};     Flags: ignoreversion restartreplace uninsrestartdelete
 
 [Icons]
-Name: {group}\VCExtras Splitter Configuration;        Filename: rundll32.exe; Parameters: "LAVSplitter.ax,OpenConfiguration"; WorkingDir: {app}\x86; IconFilename: {app}\x86\LAVSplitter.ax; IconIndex: 0; Components: lavsplitter32
-Name: {group}\VCExtras Splitter Configuration;        Filename: rundll32.exe; Parameters: "LAVSplitter.ax,OpenConfiguration"; WorkingDir: {app}\x64; IconFilename: {app}\x64\LAVSplitter.ax; IconIndex: 0; Components: lavsplitter64 AND NOT lavsplitter32
-Name: {group}\VCExtras Audio Configuration;           Filename: rundll32.exe; Parameters: "LAVAudio.ax,OpenConfiguration"; WorkingDir: {app}\x86; IconFilename: {app}\x86\LAVAudio.ax; IconIndex: 0; Components: lavaudio32
-Name: {group}\VCExtras Audio Configuration;           Filename: rundll32.exe; Parameters: "LAVAudio.ax,OpenConfiguration"; WorkingDir: {app}\x64; IconFilename: {app}\x64\LAVAudio.ax; IconIndex: 0; Components: lavaudio64 AND NOT lavaudio32
-Name: {group}\VCExtras Video Configuration;           Filename: rundll32.exe; Parameters: "LAVVideo.ax,OpenConfiguration"; WorkingDir: {app}\x86; IconFilename: {app}\x86\LAVVideo.ax; IconIndex: 0; Components: lavvideo32
-Name: {group}\VCExtras Video Configuration;           Filename: rundll32.exe; Parameters: "LAVVideo.ax,OpenConfiguration"; WorkingDir: {app}\x64; IconFilename: {app}\x64\LAVVideo.ax; IconIndex: 0; Components: lavvideo64 AND NOT lavvideo32
-Name: {group}\Visit LAV Filters Home Page;       Filename: "http://1f0.de/"
-Name: {group}\Visit LAV Filters on Doom9;        Filename: "http://forum.doom9.org/showthread.php?t=156191"
 Name: {group}\Uninstall VCExtras;             Filename: {uninstallexe};
+Name: {group}\README;                         Filename: {app}\VCREADME.txt;
+Name: {group}\LICENSE;                        Filename: {app}\LICENSE.txt;
 
 [Registry]
 Root: HKCU; Subkey: Software\VCExtras;                  Flags: uninsdeletekeyifempty
