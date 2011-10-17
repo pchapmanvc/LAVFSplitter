@@ -18,7 +18,7 @@ OPTIONS="
 --enable-shared \
 --enable-gpl \
 --enable-version2 \
---enable-pthreads \
+--enable-w32threads \
 --enable-runtime-cpudetect \
 --enable-asm \
 --disable-postproc \
