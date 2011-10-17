@@ -350,6 +350,8 @@ begin
   if (CurUninstallStep = usUninstall) then begin
     CleanMediaTypeExt32('.mkv');
     CleanMediaTypeExt32('.mka');
+    CleanMediaTypeExt32('.gxf');
+    CleanMediaTypeExt32('.lxf');
     CleanMediaTypeExt32('.bdmv');
     CleanMediaTypeExt32('.mpls');
     CleanMediaTypeExt32('.mp4');
@@ -381,6 +383,8 @@ begin
     if IsWin64 then begin
         CleanMediaTypeExt64('.mkv');
         CleanMediaTypeExt64('.mka');
+        CleanMediaTypeExt64('.gxf');
+        CleanMediaTypeExt64('.lxf');
         CleanMediaTypeExt64('.bdmv');
         CleanMediaTypeExt64('.mpls');
         CleanMediaTypeExt64('.mp4');
