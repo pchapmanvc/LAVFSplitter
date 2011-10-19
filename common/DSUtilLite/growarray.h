@@ -1,3 +1,22 @@
+/*
+ *      Copyright (C) 2011 Hendrik Leppkes
+ *      http://www.1f0.de
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 // Class template: Re-sizable array. 
 
 // To grow or shrink the array, call SetSize(). 
@@ -7,6 +26,8 @@
 // Copy constructor and assignment operator are private, to avoid throwing exceptions. (One could easily modify this.)
 // It is the caller's responsibility to release the objects in the array. The array's destuctor does not release them.
 // The array does not actually shrink when SetSize is called with a smaller size. Only the reported size changes.
+
+#pragma once
 
 #include <assert.h>
 #include "DShowUtil.h"
@@ -30,7 +51,12 @@ public:
     HRESULT hr = S_OK;
     if (alloc > m_allocated)
     {
-      m_pArray = (T *)realloc(m_pArray, sizeof(T) * alloc);
+      T *pNew = (T *)realloc(m_pArray, sizeof(T) * alloc);
+      if (!pNew) {
+        free(m_pArray);
+        return E_FAIL;
+      }
+      m_pArray = pNew;
       ZeroMemory(m_pArray+m_allocated, (alloc - m_allocated) * sizeof(T));
       m_allocated = alloc;
     }
@@ -54,11 +80,16 @@ public:
 
   HRESULT Append(GrowableArray<T> *other)
   {
+    return Append(other->Ptr(), other->GetCount());
+  }
+
+  HRESULT Append(const T *other, DWORD dwSize)
+  {
     HRESULT hr = S_OK;
     DWORD old = GetCount();
-    hr = SetSize(old + other->GetCount());
+    hr = SetSize(old + dwSize);
     if (SUCCEEDED(hr))
-      memcpy(m_pArray + old, other->Ptr(), other->GetCount());
+      memcpy(m_pArray + old, other, dwSize);
 
     return S_OK;
   }

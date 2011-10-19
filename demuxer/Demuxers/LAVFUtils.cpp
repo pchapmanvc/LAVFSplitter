@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -50,7 +49,7 @@ static int get_bit_rate(AVCodecContext *ctx)
   return bit_rate;
 }
 
-const char *get_stream_language(AVStream *pStream)
+const char *get_stream_language(const AVStream *pStream)
 {
   char *lang = NULL;
   if (av_metadata_get(pStream->metadata, "language", NULL, 0)) {
@@ -77,6 +76,7 @@ struct s_id_map nice_codec_names[] = {
   { CODEC_ID_AAC_LATM, "aac (latm)" },
   // Subs
   { CODEC_ID_TEXT, "txt" },
+  { CODEC_ID_MOV_TEXT, "tx3g" },
   { CODEC_ID_SRT, "srt" },
   { CODEC_ID_HDMV_PGS_SUBTITLE, "pgs" },
   { CODEC_ID_DVD_SUBTITLE, "vobsub" },
@@ -95,7 +95,7 @@ static std::string tolower(const char *str) {
   return ret;
 }
 
-static std::string get_codec_name(AVCodecContext *pCodecCtx)
+std::string get_codec_name(AVCodecContext *pCodecCtx)
 {
   CodecID id = pCodecCtx->codec_id;
 
@@ -106,12 +106,16 @@ static std::string get_codec_name(AVCodecContext *pCodecCtx)
   std::ostringstream codec_name;
 
   const char *nice_name = NULL;
-  for (int i = 0; i < sizeof(nice_codec_names); ++i)
+  for (int i = 0; i < countof(nice_codec_names); ++i)
   {
     if (nice_codec_names[i].id == id) {
       nice_name = nice_codec_names[i].name;
       break;
     }
+  }
+
+  if (id == CODEC_ID_DTS && pCodecCtx->codec_tag == 0xA2) {
+    profile = "DTS Express";
   }
 
   if (id == CODEC_ID_H264 && profile) {
@@ -149,7 +153,7 @@ static std::string get_codec_name(AVCodecContext *pCodecCtx)
   return codec_name.str();
 }
 
-#define SUPPORTED_FLAGS (AV_DISPOSITION_FORCED|AV_DISPOSITION_DEFAULT|AV_DISPOSITION_HEARING_IMPAIRED|AV_DISPOSITION_VISUAL_IMPAIRED|LAVF_DISPOSITION_SUB_STREAM)
+#define SUPPORTED_FLAGS (AV_DISPOSITION_FORCED|AV_DISPOSITION_DEFAULT|AV_DISPOSITION_HEARING_IMPAIRED|AV_DISPOSITION_VISUAL_IMPAIRED|LAVF_DISPOSITION_SUB_STREAM|LAVF_DISPOSITION_SECONDARY_AUDIO)
 
 static std::string format_flags(int flags){
   std::ostringstream out;
@@ -164,6 +168,7 @@ static std::string format_flags(int flags){
     FLAG_TAG(AV_DISPOSITION_HEARING_IMPAIRED, "hearing impaired");
     FLAG_TAG(AV_DISPOSITION_VISUAL_IMPAIRED, "visual impaired");
     FLAG_TAG(LAVF_DISPOSITION_SUB_STREAM, "sub");
+    FLAG_TAG(LAVF_DISPOSITION_SECONDARY_AUDIO, "secondary");
     out << "]";
   }
   return out.str();
@@ -209,7 +214,15 @@ HRESULT lavf_describe_stream(AVStream *pStream, WCHAR **ppszName)
   char *title = NULL;
   if (av_metadata_get(pStream->metadata, "title", NULL, 0)) {
     title = av_metadata_get(pStream->metadata, "title", NULL, 0)->value;
+  } else if (av_metadata_get(pStream->metadata, "handler_name", NULL, 0)) {
+    title = av_metadata_get(pStream->metadata, "handler_name", NULL, 0)->value;
+    if (strcmp(title, "GPAC ISO Video Handler") == 0 || strcmp(title, "VideoHandler") == 0|| strcmp(title, "GPAC ISO Audio Handler") == 0 || strcmp(title, "GPAC Streaming Text Handler") == 0)
+      title = NULL;
   }
+
+  // Empty titles are rather useless
+  if (title && strlen(title) == 0)
+    title = NULL;
 
   int bitrate = get_bit_rate(enc);
 
@@ -220,9 +233,11 @@ HRESULT lavf_describe_stream(AVStream *pStream, WCHAR **ppszName)
     // Title/Language
     if (title && lang) {
       buf << title << " [" << lang << "] (";
-    } else if (title || lang) {
+    } else if (title) {
       // Print either title or lang
-      buf << (title ? title : sLanguage) << " (";
+      buf << title << " (";
+    } else if (lang) {
+      buf << sLanguage << " [" << lang << "] (";
     }
     // Codec
     buf << codec_name;
@@ -249,9 +264,11 @@ HRESULT lavf_describe_stream(AVStream *pStream, WCHAR **ppszName)
     // Title/Language
     if (title && lang) {
       buf << title << " [" << lang << "] (";
-    } else if (title || lang) {
+    } else if (title) {
       // Print either title or lang
-      buf << (title ? title : sLanguage) << " (";
+      buf << title << " (";
+    } else if (lang) {
+      buf << sLanguage << " [" << lang << "] (";
     }
     // Codec
     buf << codec_name;
@@ -259,10 +276,12 @@ HRESULT lavf_describe_stream(AVStream *pStream, WCHAR **ppszName)
     if (enc->sample_rate) {
       buf << ", " << enc->sample_rate << " Hz";
     }
-    // Get channel layout
-    char channel[32];
-    av_get_channel_layout_string(channel, 32, enc->channels, enc->channel_layout);
-    buf << ", " << channel;
+    if (enc->channels) {
+      // Get channel layout
+      char channel[32];
+      av_get_channel_layout_string(channel, 32, enc->channels, enc->channel_layout);
+      buf << ", " << channel;
+    }
     // Sample Format
     if (show_sample_fmt(enc->codec_id) && get_bits_per_sample(enc)) {
       if (enc->sample_fmt == AV_SAMPLE_FMT_FLT || enc->sample_fmt == AV_SAMPLE_FMT_DBL) {
@@ -288,9 +307,11 @@ HRESULT lavf_describe_stream(AVStream *pStream, WCHAR **ppszName)
     // Title/Language
     if (title && lang) {
       buf << title << " [" << lang << "] (";
-    } else if (title || lang) {
+    } else if (title) {
       // Print either title or lang
-      buf << (title ? title : sLanguage) << " (";
+      buf << title << " (";
+    } else if (lang) {
+      buf << sLanguage << " [" << lang << "] (";
     }
     // Codec
     buf << codec_name;
@@ -335,6 +356,9 @@ void lavf_log_callback(void* ptr, int level, const char* fmt, va_list vl)
   static int print_prefix=1;
   static int count;
   static char line[LOG_BUF_LEN], prev[LOG_BUF_LEN];
+
+  if(level>AV_LOG_VERBOSE)
+    return;
 
   AVClass* avc= ptr ? *(AVClass**)ptr : NULL;
   line[0]=0;

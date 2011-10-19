@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  */
@@ -23,7 +22,7 @@
 #include "stdafx.h"
 #include "ByteParser.h"
 
-CByteParser::CByteParser(const BYTE *pData, uint32_t length)
+CByteParser::CByteParser(const BYTE *pData, unsigned int length)
   : m_pData(pData), m_pCurrent(pData), m_pEnd(pData+length), m_dwLen(length), m_bitBuffer(0), m_bitLen(0)
 {
 }
@@ -32,12 +31,12 @@ CByteParser::~CByteParser()
 {
 }
 
-uint32_t CByteParser::BitRead(uint8_t numBits, bool peek)
+unsigned int CByteParser::BitRead(unsigned int numBits, bool peek)
 {
   ASSERT(numBits <= 32);
   ASSERT(numBits <= (m_bitLen + (8 * (m_pEnd - m_pCurrent))));
 
-  if (numBits == 0) { return 0; }
+  if (numBits == 0 || RemainingBits() < numBits) { return 0; }
 
   bool atEnd = false;
   // Read more data in the buffer
@@ -54,7 +53,7 @@ uint32_t CByteParser::BitRead(uint8_t numBits, bool peek)
 
   // Compose the return value
   // Shift the value so the superfluous bits fall off, and then crop the result with an AND
-  uint32_t ret = (m_bitBuffer >> bitlen) & ((1ui64 << numBits) - 1);
+  unsigned int ret = (m_bitBuffer >> bitlen) & ((1ui64 << numBits) - 1);
 
   // If we're not peeking, then update the buffer and remove the data we just read
   if(!peek) {
@@ -69,21 +68,27 @@ uint32_t CByteParser::BitRead(uint8_t numBits, bool peek)
 // As used in H.264/MPEG-4 AVC
 // http://en.wikipedia.org/wiki/Exponential-Golomb_coding
 
-uint64_t CByteParser::UExpGolombRead() {
+unsigned CByteParser::UExpGolombRead() {
   int n = -1;
-  for(BYTE b = 0; !b; n++) {
+  for(BYTE b = 0; !b && RemainingBits(); n++) {
     b = BitRead(1);
   }
-  return (1ui64 << n) - 1 + BitRead(n);
+  if (!RemainingBits())
+    return 0;
+  return ((1 << n) | BitRead(n)) - 1;
 }
 
-int64_t CByteParser::SExpGolombRead() {
-  uint64_t k = UExpGolombRead();
+int CByteParser::SExpGolombRead() {
+  int k = UExpGolombRead() + 1;
   // Negative numbers are interleaved in the series
-  // k:      0, 1,  2, 3,  4, 5,  6, ...
-  // Actual: 0, 1, -1, 2, -2, 3, -3, ....
+  // unsigned: 0, 1,  2, 3,  4, 5,  6, ...
+  //   signed: 0, 1, -1, 2, -2, 3, -3, ....
   // So all even numbers are negative (last bit = 0)
-  return ((k&1) ? 1 : -1) * ((k + 1) >> 1);
+  // Note that we added 1 to the unsigned value already, so the check is inverted
+ if (k&1)
+   return -(k>>1);
+ else
+   return (k>>1);
 }
 
 void CByteParser::Seek(DWORD pos)

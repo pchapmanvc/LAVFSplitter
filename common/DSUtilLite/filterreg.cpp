@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  */
@@ -93,11 +92,13 @@ void RegisterSourceFilter(const CLSID& clsid, const GUID& subtype2, LPCWSTR chkb
 
   DeleteRegKey(_T("Media Type\\") + null, subtype);
 
-  va_list marker;
-  va_start(marker, chkbytes);
-  LPCWSTR ext = va_arg(marker, LPCWSTR);
-  if (ext) { DeleteRegKey(_T("Media Type\\Extensions"), ext); }
-  va_end(marker);
+  va_list extensions;
+  va_start(extensions, chkbytes);
+  LPCWSTR ext = NULL;
+  while (ext = va_arg(extensions, LPCWSTR)) {
+    DeleteRegKey(_T("Media Type\\Extensions"), ext);
+  }
+  va_end(extensions);
 }
 
 void RegisterSourceFilter(const CLSID& clsid, const GUID& subtype2, std::list<LPCWSTR> chkbytes, ...)
@@ -120,11 +121,13 @@ void RegisterSourceFilter(const CLSID& clsid, const GUID& subtype2, std::list<LP
 
   DeleteRegKey(_T("Media Type\\") + null, subtype);
 
-  va_list marker;
-  va_start(marker, chkbytes);
-  LPCWSTR ext = va_arg(marker, LPCWSTR);
-  if (ext) { DeleteRegKey(_T("Media Type\\Extensions"), ext); }
-  va_end(marker);
+  va_list extensions;
+  va_start(extensions, chkbytes);
+  LPCWSTR ext = NULL;
+  while (ext = va_arg(extensions, LPCWSTR)) {
+    DeleteRegKey(_T("Media Type\\Extensions"), ext);
+  }
+  va_end(extensions);
 }
 
 void UnRegisterSourceFilter(const GUID& subtype)

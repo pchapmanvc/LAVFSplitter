@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #pragma once
@@ -26,8 +25,11 @@
 
 #define DSHOW_TIME_BASE 10000000        // DirectShow times are in 100ns units
 #define NO_SUBTITLE_PID DWORD_MAX
+#define FORCED_SUBTITLE_PID (NO_SUBTITLE_PID - 1)
 
-struct ILAVFSettings;
+#define FORCED_SUB_STRING L"Forced Subtitles (auto)"
+
+struct ILAVFSettingsInternal;
 
 // Data Packet for queue storage
 class Packet
@@ -41,44 +43,47 @@ public:
   LONGLONG bPosition;
   AM_MEDIA_TYPE* pmt;
 
-#define LAV_PACKET_PARSED 0x0001
+#define LAV_PACKET_PARSED           0x0001
+#define LAV_PACKET_MOV_TEXT         0x0002
+#define LAV_PACKET_FORCED_SUBTITLE  0x0004
+#define LAV_PACKET_H264_ANNEXB      0x0008
   DWORD dwFlags;
 
-  Packet() { pmt = NULL; m_pbData = NULL; bDiscontinuity = bSyncPoint = bAppendable = FALSE; rtStart = rtStop = INVALID_TIME; m_dwSize = 0; m_dwBlockSize = 0; bPosition = -1; dwFlags = 0; }
+  Packet() { pmt = NULL; m_pbData = NULL; bDiscontinuity = bSyncPoint = bAppendable = FALSE; rtStart = rtStop = INVALID_TIME; m_sSize = 0; m_sBlockSize = 0; bPosition = -1; dwFlags = 0; }
   ~Packet() { DeleteMediaType(pmt); SAFE_CO_FREE(m_pbData); }
 
   // Getter
-  DWORD GetDataSize() const { return m_dwSize; }
+  size_t GetDataSize() const { return m_sSize; }
   BYTE *GetData() { return m_pbData; }
   BYTE GetAt(DWORD pos) const { return m_pbData[pos]; }
-  bool IsEmpty() const { return m_dwSize == 0; }
+  bool IsEmpty() const { return m_sSize == 0; }
 
   // Setter
-  void SetDataSize(DWORD len) { m_dwSize = len; if (m_dwSize > m_dwBlockSize) { m_pbData = (BYTE *)CoTaskMemRealloc(m_pbData, m_dwSize); m_dwBlockSize = m_dwSize; }}
-  void SetData(const void* ptr, DWORD len) { SetDataSize(len); memcpy(m_pbData, ptr, len); }
-  void Clear() { m_dwSize = m_dwBlockSize = 0; SAFE_CO_FREE(m_pbData); }
+  void SetDataSize(size_t len) { m_sSize = len; if (m_sSize > m_sBlockSize) { m_pbData = (BYTE *)CoTaskMemRealloc(m_pbData, m_sSize); m_sBlockSize = m_sSize; }}
+  void SetData(const void* ptr, size_t len) { SetDataSize(len); memcpy(m_pbData, ptr, len); }
+  void Clear() { m_sSize = m_sBlockSize = 0; SAFE_CO_FREE(m_pbData); }
 
   // Append the data of the package to our data buffer
   void Append(Packet *ptr) {
     AppendData(ptr->GetData(), ptr->GetDataSize());
   }
 
-  void AppendData(const void* ptr, DWORD len) {
-    DWORD prevSize = m_dwSize;
-    SetDataSize(m_dwSize + len);
+  void AppendData(const void* ptr, size_t len) {
+    size_t prevSize = m_sSize;
+    SetDataSize(m_sSize + len);
     memcpy(m_pbData+prevSize, ptr, len);
   }
 
   // Remove count bytes from position index
-  void RemoveHead(DWORD count) {
-    count = min(count, m_dwSize);
-    memmove(m_pbData, m_pbData+count, m_dwSize-count);
-    SetDataSize(m_dwSize - count);
+  void RemoveHead(size_t count) {
+    count = min(count, m_sSize);
+    memmove(m_pbData, m_pbData+count, m_sSize-count);
+    SetDataSize(m_sSize - count);
   }
 
 private:
-  DWORD m_dwSize;
-  DWORD m_dwBlockSize;
+  size_t m_sSize;
+  size_t m_sBlockSize;
   BYTE *m_pbData;
 };
 
@@ -118,7 +123,7 @@ public:
   virtual HRESULT SetActiveStream(StreamType type, int pid) { m_dActiveStreams[type] = pid; return S_OK; }
 
   // Called when the settings of the splitter change
-  virtual void SettingsChanged(ILAVFSettings *pSettings) {};
+  virtual void SettingsChanged(ILAVFSettingsInternal *pSettings) {};
 
 public:
   struct stream {
@@ -134,7 +139,7 @@ public:
   public:
     static const WCHAR* ToStringW(int type);
     static const CHAR* ToString(int type);
-    const stream* FindStream(DWORD pid);
+    const stream* FindStream(DWORD pid) const;
     void Clear();
   };
 
@@ -142,6 +147,7 @@ public:
 protected:
   CBaseDemuxer(LPCTSTR pName, CCritSec *pLock);
   void CreateNoSubtitleStream();
+  void CreatePGSForcedSubtitleStream();
 
 public:
   // Get the StreamList of the correponding type

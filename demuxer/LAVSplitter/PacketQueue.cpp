@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -37,6 +36,18 @@ void CPacketQueue::Queue(Packet *pPacket, BOOL tryAppend)
     }
   }
   m_queue.push_back(pPacket);
+
+#ifdef DEBUG
+  if (m_queue.size() > MAX_PACKETS_IN_QUEUE && !m_bWarnedFull) {
+    DbgLog((LOG_TRACE, 20, L"CPacketQueue::Queue() - Queue is Full (%d elements)", m_queue.size()));
+    m_bWarnedFull = true;
+  } else if (m_queue.size() > 10*MAX_PACKETS_IN_QUEUE && !m_bWarnedExtreme) {
+    DbgLog((LOG_TRACE, 20, L"CPacketQueue::Queue() - Queue is Extremely Full (%d elements)", m_queue.size()));
+    m_bWarnedExtreme = true;
+  } else if (m_queue.size() < MAX_PACKETS_IN_QUEUE/2) {
+    m_bWarnedFull = m_bWarnedExtreme = false;
+  }
+#endif
 }
 
 // Get a packet from the beginning of the list
@@ -64,6 +75,8 @@ size_t CPacketQueue::Size()
 void CPacketQueue::Clear()
 {
   CAutoLock cAutoLock(this);
+
+  DbgLog((LOG_TRACE, 10, L"CPacketQueue::Clear() - clearing queue with %d entrys", m_queue.size()));
 
   std::deque<Packet *>::iterator it;
   for (it = m_queue.begin(); it != m_queue.end(); ++it) {

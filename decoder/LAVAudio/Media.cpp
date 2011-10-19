@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -31,16 +30,18 @@ typedef struct {
 } FFMPEG_SUBTYPE_MAP;
 
 // Map Media Subtype <> FFMPEG Codec Id
-FFMPEG_SUBTYPE_MAP lavc_audio_codecs[] = {
+static const FFMPEG_SUBTYPE_MAP lavc_audio_codecs[] = {
   // AAC
   { &MEDIASUBTYPE_AAC,          CODEC_ID_AAC      },
   { &MEDIASUBTYPE_LATM_AAC,     CODEC_ID_AAC_LATM },
   { &MEDIASUBTYPE_MP4A,         CODEC_ID_AAC      },
   { &MEDIASUBTYPE_mp4a,         CODEC_ID_AAC      },
+  { &MEDIASUBTYPE_AAC_ADTS,     CODEC_ID_AAC      },
 
   // Dolby
   { &MEDIASUBTYPE_DOLBY_AC3,    CODEC_ID_AC3      },
   { &MEDIASUBTYPE_DOLBY_DDPLUS, CODEC_ID_EAC3     },
+  { &MEDIASUBTYPE_DOLBY_DDPLUS_ARCSOFT, CODEC_ID_EAC3 },
   { &MEDIASUBTYPE_DOLBY_TRUEHD, CODEC_ID_TRUEHD   },
   { &MEDIASUBTYPE_WAVE_DOLBY_AC3, CODEC_ID_AC3    },
 
@@ -66,6 +67,7 @@ FFMPEG_SUBTYPE_MAP lavc_audio_codecs[] = {
   // Other Lossless formats
   { &MEDIASUBTYPE_TTA1,         CODEC_ID_TTA      },
   { &MEDIASUBTYPE_WAVPACK4,     CODEC_ID_WAVPACK  },
+  { &MEDIASUBTYPE_MLP,          CODEC_ID_MLP      },
 
   // BluRay LPCM
   { &MEDIASUBTYPE_DVD_LPCM_AUDIO, CODEC_ID_PCM_DVD },
@@ -86,21 +88,42 @@ FFMPEG_SUBTYPE_MAP lavc_audio_codecs[] = {
   { &MEDIASUBTYPE_PCM_FL32_le,  CODEC_ID_PCM_F32LE},
   { &MEDIASUBTYPE_PCM_FL64_le,  CODEC_ID_PCM_F64LE},
 
+  // WMV
+  { &MEDIASUBTYPE_WMAUDIO1,     CODEC_ID_WMAV1    },
+  { &MEDIASUBTYPE_WMAUDIO2,     CODEC_ID_WMAV2    },
+  { &MEDIASUBTYPE_WMAUDIO3,     CODEC_ID_WMAPRO   },
+
   // Special LAVFSplitter interface
   { &MEDIASUBTYPE_FFMPEG_AUDIO, CODEC_ID_NONE     },
 };
 
 // Define Input Media Types
 const AMOVIESETUP_MEDIATYPE CLAVAudio::sudPinTypesIn[] = {
+  // DVD Types
+  { &MEDIATYPE_DVD_ENCRYPTED_PACK, &MEDIASUBTYPE_MPEG2_AUDIO },
+  { &MEDIATYPE_MPEG2_PACK,         &MEDIASUBTYPE_MPEG2_AUDIO },
+  { &MEDIATYPE_MPEG2_PES,          &MEDIASUBTYPE_MPEG2_AUDIO },
+  { &MEDIATYPE_DVD_ENCRYPTED_PACK, &MEDIASUBTYPE_DOLBY_AC3 },
+  { &MEDIATYPE_MPEG2_PACK,         &MEDIASUBTYPE_DOLBY_AC3 },
+  { &MEDIATYPE_MPEG2_PES,          &MEDIASUBTYPE_DOLBY_AC3 },
+  { &MEDIATYPE_DVD_ENCRYPTED_PACK, &MEDIASUBTYPE_DTS },
+  { &MEDIATYPE_MPEG2_PACK,         &MEDIASUBTYPE_DTS },
+  { &MEDIATYPE_MPEG2_PES,          &MEDIASUBTYPE_DTS },
+  { &MEDIATYPE_DVD_ENCRYPTED_PACK, &MEDIASUBTYPE_DVD_LPCM_AUDIO },
+  { &MEDIATYPE_MPEG2_PACK,         &MEDIASUBTYPE_DVD_LPCM_AUDIO },
+  { &MEDIATYPE_MPEG2_PES,          &MEDIASUBTYPE_DVD_LPCM_AUDIO },
+
   // AAC
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_AAC          },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_LATM_AAC     },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_MP4A         },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_mp4a         },
+  { &MEDIATYPE_Audio, &MEDIASUBTYPE_AAC_ADTS     },
 
   // Dolby
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_DOLBY_AC3    },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_DOLBY_DDPLUS },
+  { &MEDIATYPE_Audio, &MEDIASUBTYPE_DOLBY_DDPLUS_ARCSOFT },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_DOLBY_TRUEHD },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_WAVE_DOLBY_AC3 },
 
@@ -126,6 +149,7 @@ const AMOVIESETUP_MEDIATYPE CLAVAudio::sudPinTypesIn[] = {
   // Other Lossless formats
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_TTA1         },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_WAVPACK4     },
+  { &MEDIATYPE_Audio, &MEDIASUBTYPE_MLP          },
 
   // BluRay LPCM
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_DVD_LPCM_AUDIO  },
@@ -145,6 +169,11 @@ const AMOVIESETUP_MEDIATYPE CLAVAudio::sudPinTypesIn[] = {
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_PCM_IN32_le  },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_PCM_FL32_le  },
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_PCM_FL64_le  },
+
+  // WMV
+  { &MEDIATYPE_Audio, &MEDIASUBTYPE_WMAUDIO1     },
+  { &MEDIATYPE_Audio, &MEDIASUBTYPE_WMAUDIO2     },
+  { &MEDIATYPE_Audio, &MEDIASUBTYPE_WMAUDIO3     },
 
   // Special LAVFSplitter interface
   { &MEDIATYPE_Audio, &MEDIASUBTYPE_FFMPEG_AUDIO },
@@ -169,22 +198,42 @@ CodecID FindCodecId(const CMediaType *mt)
   return CODEC_ID_NONE;
 }
 
+static const struct s_ffmpeg_codec_overrides {
+  CodecID codec;
+  const char *override;
+} ffmpeg_codec_overrides[] = {
+  { CODEC_ID_MP1, "mp1float" },
+  { CODEC_ID_MP2, "mp2float" },
+  { CODEC_ID_MP3, "mp3float" },
+};
+
+const char *find_codec_override(CodecID codec)
+{
+  for (int i=0; i<countof(ffmpeg_codec_overrides); ++i) {
+    if (ffmpeg_codec_overrides[i].codec == codec)
+      return ffmpeg_codec_overrides[i].override;
+  }
+  return NULL;
+}
+
 // Default Channel to Speaker Map
 static const scmap_t m_scmap_default[] = {
   //    FL  FR  FC  LFe BL  BR  FLC FRC
-  {1, { 0,-1,-1,-1,-1,-1,-1,-1 }, 0},		// Mono			M1, 0
-  {2, { 0, 1,-1,-1,-1,-1,-1,-1 }, 0},		// Stereo		FL, FR
-  {3, { 0, 1, 2,-1,-1,-1,-1,-1 }, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER},															// 3/0			FL, FR, FC
-  {4, { 0, 1, 2, 3,-1,-1,-1,-1 }, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY},										// 3/1			FL, FR, FC, Surround
-  {5, { 0, 1, 2, 3, 4,-1,-1,-1 }, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT},						// 3/2			FL, FR, FC, BL, BR
-  {6, { 0, 1, 2, 3, 4, 5,-1,-1 }, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT},// 3/2+LFe		FL, FR, FC, BL, BR, LFe
-  {7, { 0, 1, 2, 3, 4, 5, 6,-1 }, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT|SPEAKER_BACK_CENTER},	// 3/4			FL, FR, FC, BL, Bls, Brs, BR
-  {8, { 0, 1, 2, 3, 4, 5, 6, 7 }, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT},// 3/4+LFe		FL, FR, FC, BL, Bls, Brs, BR, LFe
+  {1, 0},		// Mono			M1, 0
+  {2, 0},		// Stereo		FL, FR
+  {3, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER},															// 3/0			FL, FR, FC
+  {4, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY},										// 3/1			FL, FR, FC, Surround
+  {5, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT},						// 3/2			FL, FR, FC, BL, BR
+  {6, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT},// 3/2+LFe		FL, FR, FC, BL, BR, LFe
+  {7, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT|SPEAKER_BACK_CENTER},	// 3/4			FL, FR, FC, BL, Bls, Brs, BR
+  {8, SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT},// 3/4+LFe		FL, FR, FC, BL, Bls, Brs, BR, LFe
 };
 
-const scmap_t* get_channel_map(AVCodecContext *avctx)
+DWORD get_channel_mask(int num_channels)
 {
-  return &m_scmap_default[avctx->channels - 1];
+  if (num_channels < 1 && num_channels > 8)
+    return 0;
+  return m_scmap_default[num_channels - 1].dwChannelMask;
 }
 
 
@@ -193,7 +242,8 @@ static const char *sample_format_strings[] = {
   "24bit Integer",
   "32bit Integer",
   "8bit Integer",
-  "32bit Float"
+  "32bit Float",
+  "Bitstreaming"
 };
 
 const char *get_sample_format_desc(LAVAudioSampleFormat sfFormat)
@@ -243,6 +293,33 @@ BYTE get_byte_per_sample(LAVAudioSampleFormat sfFormat)
     return 4;
   }
   return 0;
+}
+
+LAVAudioSampleFormat get_lav_sample_fmt(AVSampleFormat sample_fmt, int bits)
+{
+  LAVAudioSampleFormat lav_sample_fmt;
+  switch(sample_fmt) {
+  case AV_SAMPLE_FMT_S16:
+  case AV_SAMPLE_FMT_S32:
+    if (bits > 24 || (!bits && sample_fmt == AV_SAMPLE_FMT_S32))
+      lav_sample_fmt = SampleFormat_32;
+    else if (bits > 16)
+      lav_sample_fmt = SampleFormat_24;
+    else
+      lav_sample_fmt = SampleFormat_16;
+    break;
+  case AV_SAMPLE_FMT_DBL:
+  case AV_SAMPLE_FMT_FLT:
+    lav_sample_fmt = SampleFormat_FP32;
+    break;
+  case AV_SAMPLE_FMT_U8:
+    lav_sample_fmt = SampleFormat_U8;
+    break;
+  default:
+    lav_sample_fmt = SampleFormat_16;
+    break;
+  }
+  return lav_sample_fmt;
 }
 
 static BYTE get_lpcm_sample_rate_index(int sample_rate)
@@ -318,7 +395,7 @@ T get_sample_from_buffer(const BYTE * const pBuffer, LAVAudioSampleFormat sfForm
 void CLAVAudio::UpdateVolumeStats(const BufferDetails &buffer)
 {
   const BYTE bSampleSize = get_byte_per_sample(buffer.sfFormat);
-  const DWORD dwSamplesPerChannel = buffer.bBuffer->GetCount() / bSampleSize / buffer.wChannels;
+  const DWORD dwSamplesPerChannel = buffer.nSamples;
   const BYTE *pBuffer = buffer.bBuffer->Ptr();
   float * const fChAvg = (float *)calloc(buffer.wChannels, sizeof(float));
   for (DWORD i = 0; i < dwSamplesPerChannel; ++i) {
@@ -330,9 +407,13 @@ void CLAVAudio::UpdateVolumeStats(const BufferDetails &buffer)
   }
 
   for (int ch = 0; ch < buffer.wChannels; ++ch) {
-    const float fAvgSqrt = sqrt(fChAvg[ch] / dwSamplesPerChannel);
-    const float fDb = 20.0f * log10(fAvgSqrt);
-    m_faVolume[ch].Sample(fDb);
+    if (fChAvg[ch] > FLT_EPSILON) {
+      const float fAvgSqrt =  sqrt(fChAvg[ch] / dwSamplesPerChannel);
+      const float fDb = 20.0f * log10(fAvgSqrt);
+      m_faVolume[ch].Sample(fDb);
+    } else {
+      m_faVolume[ch].Sample(-100.0f);
+    }
   }
   free(fChAvg);
 }
@@ -408,9 +489,11 @@ static codec_config_t m_codec_config[] = {
   { 1, { CODEC_ID_NONE }, L"pcm", L"Raw PCM Types (including QT PCM)" }, // CC_LPCM
   { 1, { CODEC_ID_WAVPACK }},                      // CC_WAVPACK
   { 1, { CODEC_ID_TTA }},                          // CC_TTA
+  { 2, { CODEC_ID_WMAV2, CODEC_ID_WMAV1 }, L"wma", L"Windows Media Audio 1/2"}, // CC_WMA2
+  { 1, { CODEC_ID_WMAPRO }},                       // CC_WMAPRO
 };
 
-const codec_config_t *get_codec_config(ConfigCodecs codec)
+const codec_config_t *get_codec_config(LAVAudioCodec codec)
 {
   codec_config_t *config = &m_codec_config[codec];
   if (!config->name) {
@@ -418,11 +501,11 @@ const codec_config_t *get_codec_config(ConfigCodecs codec)
     if (codec) {
       size_t name_len = strlen(codec->name) + 1;
       wchar_t *name = (wchar_t *)calloc(name_len, sizeof(wchar_t));
-      MultiByteToWideChar(CP_UTF8, 0, codec->name, -1, name, name_len);
+      MultiByteToWideChar(CP_UTF8, 0, codec->name, -1, name, (int)name_len);
 
       size_t desc_len = strlen(codec->long_name) + 1;
       wchar_t *desc = (wchar_t *)calloc(desc_len, sizeof(wchar_t));
-      MultiByteToWideChar(CP_UTF8, 0, codec->long_name, -1, desc, desc_len);
+      MultiByteToWideChar(CP_UTF8, 0, codec->long_name, -1, desc, (int)desc_len);
 
       config->name = name;
       config->description = desc;
@@ -430,4 +513,27 @@ const codec_config_t *get_codec_config(ConfigCodecs codec)
   }
 
   return &m_codec_config[codec];
+}
+
+static LAVAudioSampleFormat sampleFormatMapping[5][5] = {
+  { SampleFormat_16, SampleFormat_24, SampleFormat_FP32, SampleFormat_32, SampleFormat_U8 },  // SampleFormat_16
+  { SampleFormat_24, SampleFormat_FP32, SampleFormat_32, SampleFormat_16, SampleFormat_U8 },  // SampleFormat_24
+  { SampleFormat_32, SampleFormat_FP32, SampleFormat_24, SampleFormat_16, SampleFormat_U8 },  // SampleFormat_32
+  { SampleFormat_U8, SampleFormat_16, SampleFormat_24, SampleFormat_FP32, SampleFormat_32 },  // SampleFormat_U8
+  { SampleFormat_FP32, SampleFormat_24, SampleFormat_32, SampleFormat_16, SampleFormat_U8 },  // SampleFormat_FP32
+};
+
+LAVAudioSampleFormat CLAVAudio::GetBestAvailableSampleFormat(LAVAudioSampleFormat inFormat)
+{
+  ASSERT(inFormat >= 0 && inFormat < SampleFormat_Bitstream);
+
+  LAVAudioSampleFormat outFormat = sampleFormatMapping[inFormat][0];
+  for(int i = 0; i < 5; i++) {
+    if (GetSampleFormat(sampleFormatMapping[inFormat][i])) {
+      outFormat = sampleFormatMapping[inFormat][i];
+      break;
+    }
+  }
+
+  return outFormat;
 }

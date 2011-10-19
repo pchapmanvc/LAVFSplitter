@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Contributions by Ti-BEN from the XBMC DSPlayer Project, also under GPLv2
  */
@@ -57,7 +56,7 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVStream *avstream)
     avstream->codec->codec_tag = av_codec_get_tag(mp_wav_taglists, avstream->codec->codec_id);
   }
 
-  CMediaType mtype = g_AudioHelper.initAudioType(avstream->codec->codec_id, avstream->codec->codec_tag);
+  CMediaType mtype = g_AudioHelper.initAudioType(avstream->codec->codec_id, avstream->codec->codec_tag, m_containerFormat);
 
   if(mtype.formattype == FORMAT_WaveFormatEx) {
     // Special Logic for the MPEG1 Audio Formats (MP1, MP2)
@@ -85,14 +84,19 @@ STDMETHODIMP CLAVFStreamInfo::CreateAudioMediaType(AVStream *avstream)
         mtype.subtype = MEDIASUBTYPE_FLAC_FRAMED;
         mtypes.push_back(mtype);
         mtype.subtype = MEDIASUBTYPE_FLAC;
-      } else if (avstream->codec->codec_id == CODEC_ID_DTS) {
+      } else if (avstream->codec->codec_id == CODEC_ID_EAC3) {
         mtypes.push_back(mtype);
-        mtype.subtype = FOURCCMap(WAVE_FORMAT_DTS2);
+        mtype.subtype = MEDIASUBTYPE_DOLBY_DDPLUS_ARCSOFT;
+      } else if (avstream->codec->codec_id == CODEC_ID_DTS) {
         wvfmt->wFormatTag = WAVE_FORMAT_DTS2;
       } else if (avstream->codec->codec_id == CODEC_ID_TRUEHD) {
         //wvfmt->wFormatTag = (WORD)WAVE_FORMAT_TRUEHD;
         mtypes.push_back(mtype);
         mtype.subtype = MEDIASUBTYPE_DOLBY_TRUEHD_ARCSOFT;
+      } else if (avstream->codec->codec_id == CODEC_ID_AAC) {
+        mtype.subtype = MEDIASUBTYPE_AAC_ADTS;
+        mtypes.push_back(mtype);
+        mtype.subtype = MEDIASUBTYPE_AAC;
       }
     }
   } else if (mtype.formattype == FORMAT_VorbisFormat2 && mtype.subtype == MEDIASUBTYPE_Vorbis2) {
@@ -133,18 +137,19 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVStream *avstream)
   }
   CMediaType mtype = g_VideoHelper.initVideoType(avstream->codec->codec_id, avstream->codec->codec_tag, m_containerFormat);
 
-  mtype.bTemporalCompression = 1;
-  mtype.bFixedSizeSamples = 0; // TODO
+  mtype.SetTemporalCompression(TRUE);
+  mtype.SetVariableSize();
 
   // Somewhat hackish to force VIH for AVI content.
   // TODO: Figure out why exactly this is required
-  if (m_containerFormat == "avi") {
+  if (m_containerFormat == "avi" && avstream->codec->codec_id != CODEC_ID_H264) {
     mtype.formattype = FORMAT_VideoInfo;
   }
 
   // If we need aspect info, we switch to VIH2
   AVRational r = avstream->sample_aspect_ratio;
-  if (mtype.formattype == FORMAT_VideoInfo && (r.den > 0 && r.num > 0 && (r.den > 1 || r.num > 1))) {
+  AVRational rc = avstream->codec->sample_aspect_ratio;
+  if (mtype.formattype == FORMAT_VideoInfo && ((r.den > 0 && r.num > 0 && (r.den > 1 || r.num > 1)) || (rc.den > 0 && rc.num > 0 && (rc.den > 1 || rc.num > 1)))) {
     mtype.formattype = FORMAT_VideoInfo2;
   }
 
@@ -166,6 +171,33 @@ STDMETHODIMP CLAVFStreamInfo::CreateVideoMediaType(AVStream *avstream)
     mtype.pbFormat = (BYTE *)g_VideoHelper.CreateMPEG2VI(avstream, &mtype.cbFormat, m_containerFormat);
   }
 
+  if (avstream->codec->codec_id == CODEC_ID_RAWVIDEO && !avstream->codec->codec_tag) {
+    switch (avstream->codec->pix_fmt) {
+    case PIX_FMT_BGRA:
+      mtype.subtype = MEDIASUBTYPE_ARGB32;
+      mtypes.push_back(mtype);
+      mtype.subtype = MEDIASUBTYPE_RGB32;
+      break;
+    default:
+      DbgLog((LOG_TRACE, 10, L"::CreateVideoMediaType(): Unsupported raw video pixel format"));
+    }
+  }
+
+  if (avstream->codec->codec_id == CODEC_ID_MJPEG) {
+    BITMAPINFOHEADER *pBMI = NULL;
+    videoFormatTypeHandler(mtype.pbFormat, &mtype.formattype, &pBMI, NULL, NULL, NULL);
+
+    DWORD fourCC = MKTAG('M','J','P','G');
+
+    // If the original fourcc is different to MJPG, add this one
+    if (fourCC != pBMI->biCompression) {
+      mtypes.push_back(mtype);
+
+      mtype.subtype = FOURCCMap(fourCC);
+      pBMI->biCompression = fourCC;
+    }
+  }
+
   mtypes.push_back(mtype);
   return S_OK;
 }
@@ -179,14 +211,22 @@ STDMETHODIMP CLAVFStreamInfo::CreateSubtitleMediaType(AVStream *avstream)
   CMediaType mtype;
   mtype.majortype = MEDIATYPE_Subtitle;
   mtype.formattype = FORMAT_SubtitleInfo;
+
+  int extra = avstream->codec->extradata_size;
+  if (avstream->codec->codec_id == CODEC_ID_MOV_TEXT) {
+    extra = 0;
+  }
+
   // create format info
-  SUBTITLEINFO *subInfo = (SUBTITLEINFO *)mtype.AllocFormatBuffer(sizeof(SUBTITLEINFO) + avstream->codec->extradata_size);
+  SUBTITLEINFO *subInfo = (SUBTITLEINFO *)mtype.AllocFormatBuffer(sizeof(SUBTITLEINFO) + extra);
   memset(subInfo, 0, mtype.FormatLength());
 
   if (av_metadata_get(avstream->metadata, "language", NULL, 0))
   {
     char *lang = av_metadata_get(avstream->metadata, "language", NULL, 0)->value;
     strncpy_s(subInfo->IsoLang, 4, lang, _TRUNCATE);
+  } else {
+    strncpy_s(subInfo->IsoLang, 4, "und", _TRUNCATE);
   }
 
   if (av_metadata_get(avstream->metadata, "title", NULL, 0))
@@ -198,10 +238,10 @@ STDMETHODIMP CLAVFStreamInfo::CreateSubtitleMediaType(AVStream *avstream)
   }
 
   // Extradata
-  memcpy(mtype.pbFormat + (subInfo->dwOffset = sizeof(SUBTITLEINFO)), avstream->codec->extradata, avstream->codec->extradata_size);
+  memcpy(mtype.pbFormat + (subInfo->dwOffset = sizeof(SUBTITLEINFO)), avstream->codec->extradata, extra);
 
-  // TODO CODEC_ID_MOV_TEXT
   mtype.subtype = avstream->codec->codec_id == CODEC_ID_TEXT ? MEDIASUBTYPE_UTF8 :
+                  avstream->codec->codec_id == CODEC_ID_MOV_TEXT ? MEDIASUBTYPE_UTF8 :
                   avstream->codec->codec_id == CODEC_ID_SSA ? MEDIASUBTYPE_ASS :
                   avstream->codec->codec_id == CODEC_ID_HDMV_PGS_SUBTITLE ? MEDIASUBTYPE_HDMVSUB :
                   avstream->codec->codec_id == CODEC_ID_DVD_SUBTITLE ? MEDIASUBTYPE_VOBSUB :

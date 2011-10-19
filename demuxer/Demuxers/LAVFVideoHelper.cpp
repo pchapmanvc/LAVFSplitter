@@ -2,25 +2,25 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Contributions by Ti-BEN from the XBMC DSPlayer Project, also under GPLv2
  */
 
 #include "stdafx.h"
+#include "LAVFUtils.h"
 #include "LAVFVideoHelper.h"
 #include "moreuuids.h"
 #include "BaseDemuxer.h"
@@ -33,6 +33,20 @@
 
 CLAVFVideoHelper g_VideoHelper;
 
+// Map codec ids to media subtypes
+static FormatMapping video_map[] = {
+  { CODEC_ID_H263,       &MEDIASUBTYPE_H263,         NULL,                   NULL },
+  { CODEC_ID_H263I,      &MEDIASUBTYPE_H263,         NULL,                   NULL },
+  { CODEC_ID_H264,       &MEDIASUBTYPE_AVC1,         MKTAG('A','V','C','1'), &FORMAT_MPEG2Video },
+  { CODEC_ID_MPEG1VIDEO, &MEDIASUBTYPE_MPEG1Payload, NULL,                   &FORMAT_MPEGVideo  },
+  { CODEC_ID_MPEG2VIDEO, &MEDIASUBTYPE_MPEG2_VIDEO,  NULL,                   &FORMAT_MPEG2Video },
+  { CODEC_ID_VC1,        &MEDIASUBTYPE_WVC1,         MKTAG('W','V','C','1'), &FORMAT_VideoInfo2 },
+  { CODEC_ID_RV10,       &MEDIASUBTYPE_RV10,         MKTAG('R','V','1','0'), NULL },
+  { CODEC_ID_RV20,       &MEDIASUBTYPE_RV20,         MKTAG('R','V','2','0'), NULL },
+  { CODEC_ID_RV30,       &MEDIASUBTYPE_RV30,         MKTAG('R','V','3','0'), NULL },
+  { CODEC_ID_RV40,       &MEDIASUBTYPE_RV40,         MKTAG('R','V','4','0'), NULL },
+};
+
 CMediaType CLAVFVideoHelper::initVideoType(CodecID codecId, unsigned int &codecTag, std::string container)
 {
   CMediaType mediaType;
@@ -41,34 +55,32 @@ CMediaType CLAVFVideoHelper::initVideoType(CodecID codecId, unsigned int &codecT
   mediaType.subtype = FOURCCMap(codecTag);
   mediaType.formattype = FORMAT_VideoInfo; //default value
 
+    // Check against values from the map above
+  for(unsigned i = 0; i < countof(video_map); ++i) {
+    if (video_map[i].codec == codecId) {
+      if (video_map[i].subtype)
+        mediaType.subtype = *video_map[i].subtype;
+      if (video_map[i].codecTag)
+        codecTag = video_map[i].codecTag;
+      if (video_map[i].format)
+         mediaType.formattype = *video_map[i].format;
+      break;
+    }
+  }
+
   switch(codecId)
   {
+  // All these codecs should use VideoInfo2
   case CODEC_ID_ASV1:
   case CODEC_ID_ASV2:
-    mediaType.formattype = FORMAT_VideoInfo2;
-    break;
   case CODEC_ID_FLV1:
-    mediaType.formattype = FORMAT_VideoInfo2;
-    break;
-  case CODEC_ID_H263:
-  case CODEC_ID_H263I:
-    mediaType.subtype = MEDIASUBTYPE_H263;
-    break;
-  case CODEC_ID_H264:
-    mediaType.formattype = FORMAT_MPEG2Video;
-    mediaType.subtype = MEDIASUBTYPE_AVC1;
-    codecTag = MKTAG('A', 'V', 'C', '1');
-    break;
   case CODEC_ID_HUFFYUV:
+  case CODEC_ID_RV10:
+  case CODEC_ID_RV20:
+  case CODEC_ID_RV30:
+  case CODEC_ID_RV40:
+  case CODEC_ID_WMV3:
     mediaType.formattype = FORMAT_VideoInfo2;
-    break;
-  case CODEC_ID_MPEG1VIDEO:
-    mediaType.formattype = FORMAT_MPEGVideo;
-    mediaType.subtype = MEDIASUBTYPE_MPEG1Payload;
-    break;
-  case CODEC_ID_MPEG2VIDEO:
-    mediaType.formattype = FORMAT_MPEG2Video;
-    mediaType.subtype = MEDIASUBTYPE_MPEG2_VIDEO;
     break;
   case CODEC_ID_MPEG4:
     if (container == "mp4") {
@@ -76,24 +88,6 @@ CMediaType CLAVFVideoHelper::initVideoType(CodecID codecId, unsigned int &codecT
     } else {
       mediaType.formattype = FORMAT_VideoInfo2;
     }
-    break;
-  case CODEC_ID_RV10:
-  case CODEC_ID_RV20:
-  case CODEC_ID_RV30:
-  case CODEC_ID_RV40:
-    mediaType.formattype = FORMAT_VideoInfo2;
-    break;
-  case CODEC_ID_WMV3:
-    mediaType.formattype = FORMAT_VideoInfo2;
-    break;
-  case CODEC_ID_VC1:
-    mediaType.subtype = MEDIASUBTYPE_WVC1;
-    codecTag = MKTAG('W','V','C','1');
-    mediaType.formattype = FORMAT_VideoInfo2;
-    break;
-  case CODEC_ID_MJPEG:
-    mediaType.subtype = MEDIASUBTYPE_MJPG;
-    codecTag = MKTAG('M','J','P','G');
     break;
   }
 
@@ -129,7 +123,7 @@ DWORD avc_parse_annexb(BYTE *extra, int extrasize, BYTE *dst)
   CH264Nalu Nalu;
   Nalu.SetBuffer(extra, extrasize, 0);
   while (Nalu.ReadNext()) {
-    BYTE *data = Nalu.GetDataBuffer();
+    const BYTE *data = Nalu.GetDataBuffer();
     if (((*data & 0x9f) == NALU_TYPE_SPS || (*data & 0x9f) == NALU_TYPE_PPS) && (*data & 0x60) != 0) {
       int16_t len = Nalu.GetDataLength();
       AV_WB16(dst+dstSize, len);
@@ -166,8 +160,13 @@ VIDEOINFOHEADER *CLAVFVideoHelper::CreateVIH(const AVStream* avstream, ULONG *si
   pvi->bmiHeader.biWidth = avstream->codec->width;
   pvi->bmiHeader.biHeight = avstream->codec->height;
   pvi->bmiHeader.biBitCount = avstream->codec->bits_per_coded_sample;
-  pvi->bmiHeader.biSizeImage = avstream->codec->width * avstream->codec->height * pvi->bmiHeader.biBitCount / 8;
-  pvi->bmiHeader.biCompression = FOURCCMap(avstream->codec->codec_tag).Data1;
+  // Validate biBitCount is set to something useful
+  if (pvi->bmiHeader.biBitCount == 0 || avstream->codec->codec_id == CODEC_ID_RAWVIDEO) {
+    pvi->bmiHeader.biBitCount = av_get_bits_per_pixel2(avstream->codec->pix_fmt);
+  }
+  pvi->bmiHeader.biSizeImage = DIBSIZE(pvi->bmiHeader); // Calculating this value doesn't really make alot of sense, but apparently some decoders freak out if its 0
+
+  pvi->bmiHeader.biCompression = avstream->codec->codec_tag;
   //TOFIX The bitplanes is depending on the subtype
   pvi->bmiHeader.biPlanes = 1;
   pvi->bmiHeader.biClrUsed = 0;
@@ -183,6 +182,7 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream* avstream, ULONG *
 {
   int extra = 0;
   BYTE *extradata = NULL;
+  BOOL bZeroPad = (avstream->codec->codec_id == CODEC_ID_VC1 && (container == "mpegts" || container == "mpeg"));
 
   // Create a VIH that we'll convert
   VIDEOINFOHEADER *vih = CreateVIH(avstream, size);
@@ -190,7 +190,7 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream* avstream, ULONG *
   if(avstream->codec->extradata_size > 0) {
     extra = avstream->codec->extradata_size;
     //increase extra size by one, because VIH2 requires one 0 byte between header and extra data
-    if (container == "mpegts") {
+    if (bZeroPad) {
       extra++;
     }
 
@@ -214,6 +214,8 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream* avstream, ULONG *
     av_reduce(&num, &den, (int64_t)r.num * num, (int64_t)r.den * den, 255);
   } else if (rc.den > 0 && rc.num > 0 && (rc.den > 1 || rc.num > 1)) {
     av_reduce(&num, &den, (int64_t)rc.num * num, (int64_t)rc.den * den, 255);
+  } else {
+    av_reduce(&num, &den, num, den, num);
   }
   vih2->dwPictAspectRatioX = num;
   vih2->dwPictAspectRatioY = den;
@@ -228,7 +230,7 @@ VIDEOINFOHEADER2 *CLAVFVideoHelper::CreateVIH2(const AVStream* avstream, ULONG *
 
   if(extra) {
     // The first byte after the infoheader has to be 0 in mpeg-ts
-    if (container == "mpegts") {
+    if (bZeroPad) {
       *((BYTE*)vih2 + sizeof(VIDEOINFOHEADER2)) = 0;
       // after that, the extradata .. size reduced by one again
       memcpy((BYTE*)vih2 + sizeof(VIDEOINFOHEADER2) + 1, extradata, extra - 1);

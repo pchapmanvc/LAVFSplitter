@@ -1,5 +1,197 @@
 LAV DirectShow Filters Changelog
 ===================================
+0.37 - 2011/10/06
+LAV Splitter
+- Improved handling of failures on the output pins
+- Improved VC-1 in EVO timestamps
+
+LAV Audio
+- Added support for dynamic channel count changes in AAC
+- Implemented support for sample format conversions
+- Implemented Audio Delay options
+- Disabled the WMA codecs by default
+- Improved Bitstreaming data flow
+
+LAV Video
+- Fixed cropping of VP6 video
+- New SSE2 YUV420 -> YUV422 converter
+- Performance enhancements in the CUVID decoder on some systems
+- Fixed playback with the XP Overlay Mixer
+- Fixed a crash when decoding RGB video (Fraps, etc)
+
+0.36 - 2011/09/29
+LAV Splitter
+- Improved support for ADTS AAC
+- Fixed MPEG-2 timestamps in VOB
+- Fixed MPEG-2 frame rate reporting for telecined/interlaced
+
+LAV Video
+- Integrated NVIDIA CUVID Hardware decoder
+- Performance enhancements in 10bit decoding
+- Support for Flash Screen Video (FSV1)
+- Support for Apple ProRes
+- Improved MPEG-2 playback
+- Improved A/V sync with VC-1 and MPEG4-ASP
+
+0.35 - 2011/09/07
+LAV Splitter
+- Fixed a crash in IAMStreamSelect::Info handling with certain applications
+- Improve duration calculation for MPEG files
+
+LAV Audio
+- Fix playback of DTS streams which change the channel mid-playback
+
+LAV Video
+- Fixed a crash with 10-bit decoding and benchmarking tools
+- Fixed a H264 NALU parsing issue with certain streams
+
+0.34 - 2011/09/04
+LAV Splitter
+- Improve playback of VC-1 in EVO
+- Support for SSA subtitles in AVI
+- Support for H264 in VFW mode in MKV
+
+LAV Video
+- New optimized pixel format converters (faster and more accurate)
+- New YUV->RGB converter
+- Support for PNG video
+
+0.33 - 2011/08/22
+LAV Splitter
+- Improved compatibility with the MS WMVideo decoder
+- Fixed the mediatype for raw PCM streams
+
+LAV Audio
+- Added support for Vorbis streams demuxed by Haali and MPC-HC Splitters
+
+LAV Video
+- VC-1 decoding is now disabled by default
+- Fixed behaviour of the Stream AR option
+- The maximum number of decoding threads is now 16
+- Free decoding buffers when the input pin disconnects to avoid big memory leaks
+
+0.32 - 2011/08/19
+General
+- The installer will now add shortcuts to the start menu to open the filter configurations
+- The ffmpeg DLLs have been renamed to carry a "lav" suffix to avoid collisions with other components
+
+LAV Splitter
+- Improved detection of AAC LATM tracks (previously mis-detected as mp1/mp2)
+- Fixed playback of badly interleaved AVI files
+- Smarter default stream selection for RealMedia files
+- Improved stream language handling for Blu-rays
+- Fixed a crash issue with the Forced Subtitle pin on Blu-rays
+
+LAV Audio
+- DTS decoding failures are now handled more gracefully
+- Fixed Media Types for Stereo 44.1kHz Audio
+
+LAV Video
+- First official version - refer to release notes for details
+
+0.31 - 2011/07/28
+LAV Splitter
+- Improved audio codec selection priorities
+- Improved VC-1 playback when using the madVR internal decoder
+- Improved playback of MPEG-TS files with a timestamp wrap right at the beginning of a file
+- Reduced amount of data required for file probing, resulting in faster startup time
+- Fixed demuxing/timestamping of RealMedia files
+
+LAV Audio
+- Fixed a bug in the DTS parser which caused occasional hiccups on DTS-HD content
+- Added the ability to detect DTS-in-WAV
+
+0.30 - 2011/07/15
+LAV Splitter
+- Improved VC-1 playback with ffdshow DXVA
+- Added support for outputting MPEG-4 Timed Text subtitles (only pure text supported)
+- Better support for MLP audio
+- I/O performance enhancements
+- Added an option to toggle how LAV Splitter handles audio stream switching
+- Added a hard-limit on queue sizes to avoid excessive memory usage when transcoding
+- Added an experimental interface for the Player to control graph rebuilding
+
+LAV Audio
+- Further improvements to the DTS-HD parsing
+- Better support for MLP audio
+- Added more E-AC3 subtypes
+
+0.29 - 2011/06/09
+LAV Splitter
+- The language code is now always shown in the stream changer (as a hint to easily know what to put into the preferred languages fields)
+- Enabled ITrackInfo
+- Improved H264 in MPEG-TS playback (including an option to try to fix broken HD-PVR recordings)
+- Added a programmatic configuration interface for players to configure LAV Splitter
+
+LAV Audio
+- Added support for decoding encrypted DVD audio
+- Fix decoding of some DTS-HD streams with the ArcSoft decoder
+- Added a programmatic configuration interface for players to configure LAV Audio
+
+0.28 - 2011/05/27
+LAV Splitter
+- Improved PGS filtering, forced subtitles should be cleared off the screen properly more often.
+- Improved playback of H264 in MPEG-TS with certain files (mostly from camcorders, but some Blu-rays as well)
+- Fixed 16-bit LPCM on DVDs
+- Fixed the Media Types for uncompressed video
+
+LAV Audio
+- Added the ability to decode DTS Express when using the ArcSoft DTS Decoder
+- Fixed missing audio after seeks with Ogg Vorbis
+
+0.27 - 2011/05/24
+General
+- Added debug versions which generate log files on your desktop
+
+LAV Splitter
+- Fixed a memory leak when switching streams
+- Increased probe buffer size (which results in files to be properly detected in more cases)
+- Fixed playback of MPEG-TS files with a odd program configuration
+
+LAV Audio
+- Improvements to the DTS decoder interface
+  - Support for 1.1.0.0
+  - Try to reverse any channel upmixing done by the decoder, outputting the audio as close to the original source as possible.
+- New Channel Mapping functionality
+  - Output only "standard" channel layouts (Mono, Stereo, 5.1, 6.1, 7.1), filling non-existant channels with silence. Required by some HDMI receivers with "odd" source layouts. (default)
+  - Convert Mono to Stereo (simply double the audio channel)
+  - Convert 6.1 to 7.1 (Back Center gets doubled into both back channels)
+
+0.26 - 2011/05/15
+General
+- The VC2010 runtime is no longer required to be installed
+
+LAV Splitter
+- Further VC-1 in MKV improvements
+- Added a separate "mpegvideo" (m2v files) option to the Format section
+- Added a flag for secondary audio streams
+- Changed the default DTS media type (better compatibility)
+
+LAV Audio
+- Added the ability to use the ArcSoft DTS decoder directly through LAV Audio
+- Added an automatic algorithm to keep A/V sync stable
+- Improved Bitstreaming with splitters other then LAV Splitter
+- Improved timestamp generation when bitstreaming
+- Fixed LPCM 24-bit Media Types
+
+0.25 - 2011/05/06
+LAV Splitter
+- Added the ability to filter Blu-ray PGS subtitles, so only frames flagged as "forced" are delivered
+  - Either through a new "Forced Subtitles" stream (default)
+  - Or, filtering for every PGS stream (configurable)
+- Improved support for H264 in AVI
+- Improved timings for TrueHD in MKV
+- m2ts files directly openend inside a Blu-ray structure should now properly display stream languages
+- Alot of fixes and enhancements for format compatibility (especially MPEG-TS)
+- Support using the ArcSoft HD Audio Decoder for E-AC3
+
+LAV Audio
+- Audio bitstreaming (pass-through) for HDMI and S/PDIF
+  - Support for AC3, E-AC3, TrueHD, DTS and DTS-HD
+- Use the float decoders for mp1/mp2
+- Added official support for WMAv1, WMAv2 and WMA Pro
+- Fixed an issue that caused sync issues with FLAC audio, and FLAC is once again enabled by default
+
 0.24 - 2011/04/25
 General
 - Big ffmpeg update! Libraries have been renamed (version increase)

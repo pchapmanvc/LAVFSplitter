@@ -2,21 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
- *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #pragma once
@@ -29,7 +27,7 @@
 class CBDDemuxer : public CBaseDemuxer, public IAMExtendedSeeking
 {
 public:
-  CBDDemuxer(CCritSec *pLock, ILAVFSettings *pSettings);
+  CBDDemuxer(CCritSec *pLock, ILAVFSettingsInternal *pSettings);
   ~CBDDemuxer(void);
 
   // IUnknown
@@ -53,7 +51,7 @@ public:
   CStreamList *GetStreams(StreamType type) { if (m_lavfDemuxer) return m_lavfDemuxer->GetStreams(type); else return __super::GetStreams(type);  }
   HRESULT SetActiveStream(StreamType type, int pid) { if (m_lavfDemuxer) { m_lavfDemuxer->SetActiveStream(type, pid); return S_OK; } else return E_FAIL; }
 
-  void SettingsChanged(ILAVFSettings *pSettings) { if (m_lavfDemuxer) m_lavfDemuxer->SettingsChanged(pSettings); }
+  void SettingsChanged(ILAVFSettingsInternal *pSettings) { if (m_lavfDemuxer) m_lavfDemuxer->SettingsChanged(pSettings); }
 
   const stream* SelectVideoStream() { return m_lavfDemuxer->SelectVideoStream(); }
   const stream* SelectAudioStream(std::list<std::string> prefLanguages) { return m_lavfDemuxer->SelectAudioStream(prefLanguages); }
@@ -72,6 +70,8 @@ public:
   STDMETHODIMP put_PlaybackSpeed(double Speed) {return E_NOTIMPL;}
   STDMETHODIMP get_PlaybackSpeed(double* pSpeed) {return E_NOTIMPL;}
 
+  void ProcessClipLanguages();
+
 private:
   void ProcessStreams(int count, BLURAY_STREAM_INFO *streams);
   void ProcessBDEvents();
@@ -80,7 +80,7 @@ private:
   BLURAY *m_pBD;
   AVIOContext *m_pb;
 
-  ILAVFSettings *m_pSettings;
+  ILAVFSettingsInternal *m_pSettings;
   CLAVFDemuxer *m_lavfDemuxer;
 
   BLURAY_TITLE_INFO *m_pTitle;
@@ -88,5 +88,5 @@ private:
 
   REFERENCE_TIME *m_rtOffset;
   REFERENCE_TIME m_rtNewOffset;
-  uint64_t       m_bNewOffsetPos;
+  int64_t       m_bNewOffsetPos;
 };

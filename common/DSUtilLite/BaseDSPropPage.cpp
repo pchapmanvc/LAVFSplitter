@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 
@@ -64,4 +63,48 @@ void CBaseDSPropPage::ListView_AddCol(HWND hlv, int &ncol, int w, const wchar_t 
   lvc.fmt = right ? LVCFMT_RIGHT : LVCFMT_LEFT;
   ListView_InsertColumn(hlv, ncol, &lvc);
   ncol++;
+}
+
+HRESULT CBaseDSPropPage::ShowPropPageDialog(IBaseFilter *pFilter)
+{
+  CheckPointer(pFilter, E_INVALIDARG);
+  CoInitialize(NULL);
+
+  // Get PropertyPages interface
+  ISpecifyPropertyPages *pProp = NULL;
+  HRESULT hr = pFilter->QueryInterface<ISpecifyPropertyPages>(&pProp);
+  if (SUCCEEDED(hr) && pProp) {
+    // Get the filter's name and IUnknown pointer.
+    FILTER_INFO FilterInfo;
+    hr = pFilter->QueryFilterInfo(&FilterInfo);
+
+    IUnknown *pFilterUnk = NULL;
+    pFilter->QueryInterface<IUnknown>(&pFilterUnk);
+
+    // Show the page.
+    CAUUID caGUID;
+    pProp->GetPages(&caGUID);
+    pProp->Release();
+    hr = OleCreatePropertyFrame(
+        NULL,                   // Parent window
+        0, 0,                   // Reserved
+        FilterInfo.achName,     // Caption for the dialog box
+        1,                      // Number of objects (just the filter)
+        &pFilterUnk,            // Array of object pointers.
+        caGUID.cElems,          // Number of property pages
+        caGUID.pElems,          // Array of property page CLSIDs
+        0,                      // Locale identifier
+        0, NULL                 // Reserved
+    );
+
+    // Clean up.
+    pFilterUnk->Release();
+    if (FilterInfo.pGraph)
+      FilterInfo.pGraph->Release();
+    CoTaskMemFree(caGUID.pElems);
+
+    hr = S_OK;
+  }
+  CoUninitialize();
+  return hr;
 }

@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -25,7 +24,6 @@
 #include <Commctrl.h>
 
 #include "resource.h"
-#include "version.h"
 
 CLAVAudioSettingsProp::CLAVAudioSettingsProp(LPUNKNOWN pUnk, HRESULT* phr)
   : CBaseDSPropPage(NAME("LAVCAudioProp"), pUnk, IDD_PROPPAGE_AUDIO_SETTINGS, IDS_SETTINGS), m_pAudioSettings(NULL), m_bDRCEnabled(FALSE), m_iDRCLevel(100)
@@ -58,10 +56,67 @@ HRESULT CLAVAudioSettingsProp::OnApplyChanges()
 {
   ASSERT(m_pAudioSettings != NULL);
   HRESULT hr = S_OK;
+  BOOL bFlag;
 
+  // DRC
   int iDRCLevel = (int)SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_GETPOS, 0, 0);
-  BOOL bDRC = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DRC, BM_GETCHECK, 0, 0);
-  hr = m_pAudioSettings->SetDRC(bDRC, iDRCLevel);
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DRC, BM_GETCHECK, 0, 0);
+  hr = m_pAudioSettings->SetDRC(bFlag, iDRCLevel);
+
+  // Bitstreaming codec options
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BS_AC3, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetBitstreamConfig(Bitstream_AC3, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BS_EAC3, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetBitstreamConfig(Bitstream_EAC3, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BS_TRUEHD, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetBitstreamConfig(Bitstream_TRUEHD, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BS_DTS, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetBitstreamConfig(Bitstream_DTS, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BS_DTSHD, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetBitstreamConfig(Bitstream_DTSHD, bFlag);
+
+  // DTS-HD framing
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BS_DTSHD_FRAMING, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetDTSHDFraming(bFlag);
+
+  // The other playback options
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_AUTO_AVSYNC, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetAutoAVSync(bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STANDARD_CH_LAYOUT, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetOutputStandardLayout(bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_EXPAND_MONO, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetExpandMono(bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_EXPAND61, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetExpand61(bFlag);
+
+  // Sample Formats
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_OUT_S16, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetSampleFormat(SampleFormat_16, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_OUT_S24, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetSampleFormat(SampleFormat_24, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_OUT_S32, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetSampleFormat(SampleFormat_32, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_OUT_FP32, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetSampleFormat(SampleFormat_FP32, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_OUT_U8, BM_GETCHECK, 0, 0);
+  m_pAudioSettings->SetSampleFormat(SampleFormat_U8, bFlag);
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_DELAY_ENABLED, BM_GETCHECK, 0, 0);
+  WCHAR buffer[100];
+  SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_GETTEXT, 100, (LPARAM)&buffer);
+  int delay = _wtoi(buffer);
+  m_pAudioSettings->SetAudioDelay(bFlag, delay);
 
   LoadData();
 
@@ -95,6 +150,44 @@ HRESULT CLAVAudioSettingsProp::OnActivate()
     WCHAR buffer[10];
     _snwprintf_s(buffer, _TRUNCATE, L"%d%%", m_iDRCLevel);
     SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL_TEXT, WM_SETTEXT, 0, (LPARAM)buffer);
+
+    SendDlgItemMessage(m_Dlg, IDC_BS_AC3, BM_SETCHECK, m_bBitstreaming[Bitstream_AC3], 0);
+    SendDlgItemMessage(m_Dlg, IDC_BS_EAC3, BM_SETCHECK, m_bBitstreaming[Bitstream_EAC3], 0);
+    SendDlgItemMessage(m_Dlg, IDC_BS_TRUEHD, BM_SETCHECK, m_bBitstreaming[Bitstream_TRUEHD], 0);
+    SendDlgItemMessage(m_Dlg, IDC_BS_DTS, BM_SETCHECK, m_bBitstreaming[Bitstream_DTS], 0);
+    SendDlgItemMessage(m_Dlg, IDC_BS_DTSHD, BM_SETCHECK, m_bBitstreaming[Bitstream_DTSHD], 0);
+    EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD), m_bBitstreaming[Bitstream_DTS]);
+
+    SendDlgItemMessage(m_Dlg, IDC_BS_DTSHD_FRAMING, BM_SETCHECK, m_bDTSHDFraming, 0);
+    EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD_FRAMING), m_bBitstreaming[Bitstream_DTSHD]);
+    addHint(IDC_BS_DTSHD_FRAMING, L"With some Receivers, this setting might be needed to achieve the full features of DTS. However, on other Receivers, this option will cause DTS to not work at all.\n\nIf you do not experience any problems, its recommended to leave this setting untouched.");
+
+    SendDlgItemMessage(m_Dlg, IDC_AUTO_AVSYNC, BM_SETCHECK, m_bAutoAVSync, 0);
+    addHint(IDC_AUTO_AVSYNC, L"Enables automatic tracking and correction of A/V sync.\n\nIf you encounter any sync issues, disabling this option can help in debugging the source of the problem.");
+
+    SendDlgItemMessage(m_Dlg, IDC_STANDARD_CH_LAYOUT, BM_SETCHECK, m_bOutputStdLayout, 0);
+    addHint(IDC_STANDARD_CH_LAYOUT, L"Converts all channel layouts to one of the \"standard\" layouts (5.1/6.1/7.1) by adding silent channels. This is required for sending the PCM over HDMI if not using another downstream mixer, for example when using WASAPI.");
+
+    SendDlgItemMessage(m_Dlg, IDC_EXPAND_MONO, BM_SETCHECK, m_bExpandMono, 0);
+    addHint(IDC_EXPAND_MONO, L"Plays Mono Audio in both Left/Right Front channels, instead of the center.");
+    SendDlgItemMessage(m_Dlg, IDC_EXPAND61, BM_SETCHECK, m_bExpand61, 0);
+    addHint(IDC_EXPAND61, L"Converts 6.1 Audio to 7.1 by copying the Back Center into both Back Left and Right channels.");
+
+    SendDlgItemMessage(m_Dlg, IDC_OUT_S16, BM_SETCHECK, m_bSampleFormats[SampleFormat_16], 0);
+    SendDlgItemMessage(m_Dlg, IDC_OUT_S24, BM_SETCHECK, m_bSampleFormats[SampleFormat_24], 0);
+    SendDlgItemMessage(m_Dlg, IDC_OUT_S32, BM_SETCHECK, m_bSampleFormats[SampleFormat_32], 0);
+    SendDlgItemMessage(m_Dlg, IDC_OUT_FP32, BM_SETCHECK, m_bSampleFormats[SampleFormat_FP32], 0);
+    SendDlgItemMessage(m_Dlg, IDC_OUT_U8, BM_SETCHECK, m_bSampleFormats[SampleFormat_U8], 0);
+
+    SendDlgItemMessage(m_Dlg, IDC_DELAY_ENABLED, BM_SETCHECK, m_bAudioDelay, 0);
+    EnableWindow(GetDlgItem(m_Dlg, IDC_DELAYSPIN), m_bAudioDelay);
+    EnableWindow(GetDlgItem(m_Dlg, IDC_DELAY), m_bAudioDelay);
+
+    SendDlgItemMessage(m_Dlg, IDC_DELAYSPIN, UDM_SETRANGE32, -1000*60*60*24, 1000*60*60*24);
+
+    WCHAR stringBuffer[100];
+    swprintf_s(stringBuffer, L"%d", m_iAudioDelay);
+    SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_SETTEXT, 0, (LPARAM)stringBuffer);
   }
 
   return hr;
@@ -104,6 +197,19 @@ HRESULT CLAVAudioSettingsProp::LoadData()
 {
   HRESULT hr = S_OK;
   hr = m_pAudioSettings->GetDRC(&m_bDRCEnabled, &m_iDRCLevel);
+  for (unsigned i = 0; i < Bitstream_NB; ++i)
+    m_bBitstreaming[i] = m_pAudioSettings->GetBitstreamConfig((LAVBitstreamCodec)i) != 0;
+  m_bDTSHDFraming = m_pAudioSettings->GetDTSHDFraming();
+  m_bAutoAVSync = m_pAudioSettings->GetAutoAVSync();
+  m_bOutputStdLayout = m_pAudioSettings->GetOutputStandardLayout();
+  m_bExpandMono = m_pAudioSettings->GetExpandMono();
+  m_bExpand61 = m_pAudioSettings->GetExpand61();
+
+  for (unsigned i = 0; i < SampleFormat_NB; ++i)
+    m_bSampleFormats[i] = m_pAudioSettings->GetSampleFormat((LAVAudioSampleFormat)i) != 0;
+
+  m_pAudioSettings->GetAudioDelay(&m_bAudioDelay, &m_iAudioDelay);
+
   return hr;
 }
 
@@ -118,8 +224,91 @@ INT_PTR CLAVAudioSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM wPa
       if (lValue != m_bDRCEnabled) {
         SetDirty();
       }
-      EnableWindow(GetDlgItem(m_Dlg, IDC_DRC_LEVEL), lValue);
+      EnableWindow(GetDlgItem(m_Dlg, IDC_DRC_LEVEL), (BOOL)lValue);
+    } else if (LOWORD(wParam) == IDC_BS_AC3 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bBitstreaming[Bitstream_AC3])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_BS_EAC3 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bBitstreaming[Bitstream_EAC3])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_BS_TRUEHD && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bBitstreaming[Bitstream_TRUEHD])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_BS_DTS && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bBitstreaming[Bitstream_DTS])
+        SetDirty();
+      EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD), bFlag);
+    } else if (LOWORD(wParam) == IDC_BS_DTSHD && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bBitstreaming[Bitstream_DTSHD])
+        SetDirty();
+      EnableWindow(GetDlgItem(m_Dlg, IDC_BS_DTSHD_FRAMING), bFlag);
+    } else if (LOWORD(wParam) == IDC_BS_DTSHD_FRAMING && HIWORD(wParam) == BN_CLICKED) {
+      BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+      if (bFlag != m_bDTSHDFraming)
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_AUTO_AVSYNC && HIWORD(wParam) == BN_CLICKED) {
+      BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+      if (bFlag != m_bAutoAVSync)
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_STANDARD_CH_LAYOUT && HIWORD(wParam) == BN_CLICKED) {
+      BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+      if (bFlag != m_bOutputStdLayout)
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_EXPAND_MONO && HIWORD(wParam) == BN_CLICKED) {
+      BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+      if (bFlag != m_bExpandMono)
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_EXPAND61 && HIWORD(wParam) == BN_CLICKED) {
+      BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+      if (bFlag != m_bExpand61)
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_OUT_S16 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bSampleFormats[SampleFormat_16])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_OUT_S24 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bSampleFormats[SampleFormat_24])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_OUT_S32 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bSampleFormats[SampleFormat_32])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_OUT_FP32 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bSampleFormats[SampleFormat_FP32])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_OUT_U8 && HIWORD(wParam) == BN_CLICKED) {
+      bool bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0) != 0;
+      if (bFlag != m_bSampleFormats[SampleFormat_U8])
+        SetDirty();
+    } else if (LOWORD(wParam) == IDC_DELAY_ENABLED && HIWORD(wParam) == BN_CLICKED) {
+      BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, LOWORD(wParam), BM_GETCHECK, 0, 0);
+      if (bFlag != m_bAudioDelay)
+        SetDirty();
+      EnableWindow(GetDlgItem(m_Dlg, IDC_DELAYSPIN), bFlag);
+      EnableWindow(GetDlgItem(m_Dlg, IDC_DELAY), bFlag);
+    } else if (LOWORD(wParam) == IDC_DELAY && HIWORD(wParam) == EN_CHANGE) {
+      WCHAR buffer[100];
+      SendDlgItemMessage(m_Dlg, LOWORD(wParam), WM_GETTEXT, 100, (LPARAM)&buffer);
+      int delay = _wtoi(buffer);
+      int len = wcslen(buffer);
+      if (delay == 0 && (buffer[0] != L'0' || len > 1)) {
+        SendDlgItemMessage(m_Dlg, LOWORD(wParam), EM_UNDO, 0, 0);
+      } else {
+        swprintf_s(buffer, L"%d", delay);
+        if (wcslen(buffer) != len)
+          SendDlgItemMessage(m_Dlg, IDC_DELAY, WM_SETTEXT, 0, (LPARAM)buffer);
+        if (delay != m_iAudioDelay)
+          SetDirty();
+      }
     }
+
     break;
   case WM_HSCROLL:
     lValue = SendDlgItemMessage(m_Dlg, IDC_DRC_LEVEL, TBM_GETPOS, 0, 0);
@@ -172,13 +361,12 @@ HRESULT CLAVAudioFormatsProp::OnApplyChanges()
 
   HWND hlv = GetDlgItem(m_Dlg, IDC_CODECS);
 
-  bool bFormats[CC_NB];
-
   // Get checked state
+  BOOL bFlag;
   for (int nItem = 0; nItem < ListView_GetItemCount(hlv); nItem++) {
-    bFormats[nItem] = ListView_GetCheckState(hlv, nItem) ? true : false;
+    bFlag = ListView_GetCheckState(hlv, nItem);
+    m_pAudioSettings->SetFormatConfiguration((LAVAudioCodec)nItem, bFlag);
   }
-  m_pAudioSettings->SetFormatConfiguration(bFormats);
 
   LoadData();
 
@@ -208,7 +396,7 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
   ListView_AddCol(hlv, nCol, 177, L"Description", false);
 
   ListView_DeleteAllItems(hlv);
-  ListView_SetItemCount(hlv, CC_NB);
+  ListView_SetItemCount(hlv, Codec_NB);
 
   // Create entrys for the formats
   LVITEM lvi;
@@ -216,8 +404,8 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
   lvi.mask = LVIF_TEXT|LVIF_PARAM;
 
   int nItem = 0;
-  for (nItem = 0; nItem < CC_NB; ++nItem) {
-    const codec_config_t *config = get_codec_config((ConfigCodecs)nItem);
+  for (nItem = 0; nItem < Codec_NB; ++nItem) {
+    const codec_config_t *config = get_codec_config((LAVAudioCodec)nItem);
 
     // Create main entry
     lvi.iItem = nItem + 1;
@@ -242,7 +430,8 @@ HRESULT CLAVAudioFormatsProp::OnActivate()
 HRESULT CLAVAudioFormatsProp::LoadData()
 {
   HRESULT hr = S_OK;
-  hr = m_pAudioSettings->GetFormatConfiguration(m_bFormats);
+  for (unsigned i = 0; i < Codec_NB; ++i)
+    m_bFormats[i] = m_pAudioSettings->GetFormatConfiguration((LAVAudioCodec)i) != 0;
   return hr;
 }
 
@@ -315,21 +504,27 @@ HRESULT CLAVAudioStatusProp::OnActivate()
   }
   ASSERT(m_pAudioStatus != NULL);
 
+  m_nChannels = 0;
+
   const char *codec = NULL;
-  int nChannels = 0;
-  int nSampleRate = 0;
-  hr = m_pAudioStatus->GetInputDetails(&codec, &nChannels, &nSampleRate);
+  const char *decodeFormat = NULL;
+  int nDecodeChannels = 0;
+  int nDecodeSampleRate = 0;
+  DWORD dwDecodeChannelMask;
+  hr = m_pAudioStatus->GetDecodeDetails(&codec, &decodeFormat, &nDecodeChannels, &nDecodeSampleRate, &dwDecodeChannelMask);
   if (SUCCEEDED(hr)) {
     WCHAR buffer[100];
-    _snwprintf_s(buffer, _TRUNCATE, L"%d", nChannels);
-    SendDlgItemMessage(m_Dlg, IDC_CHANNELS, WM_SETTEXT, 0, (LPARAM)buffer);
-    m_nChannels = nChannels;
+    _snwprintf_s(buffer, _TRUNCATE, L"%d / 0x%x", nDecodeChannels, dwDecodeChannelMask);
+    SendDlgItemMessage(m_Dlg, IDC_INPUT_CHANNEL, WM_SETTEXT, 0, (LPARAM)buffer);
 
-    _snwprintf_s(buffer, _TRUNCATE, L"%d", nSampleRate);
-    SendDlgItemMessage(m_Dlg, IDC_SAMPLE_RATE, WM_SETTEXT, 0, (LPARAM)buffer);
+    _snwprintf_s(buffer, _TRUNCATE, L"%d", nDecodeSampleRate);
+    SendDlgItemMessage(m_Dlg, IDC_INPUT_SAMPLERATE, WM_SETTEXT, 0, (LPARAM)buffer);
 
     _snwprintf_s(buffer, _TRUNCATE, L"%S", codec);
-    SendDlgItemMessage(m_Dlg, IDC_CODEC, WM_SETTEXT, 0, (LPARAM)buffer);
+    SendDlgItemMessage(m_Dlg, IDC_INPUT_CODEC, WM_SETTEXT, 0, (LPARAM)buffer);
+
+    _snwprintf_s(buffer, _TRUNCATE, L"%S", decodeFormat);
+    SendDlgItemMessage(m_Dlg, IDC_INPUT_FORMAT, WM_SETTEXT, 0, (LPARAM)buffer);
   }
 
   SendDlgItemMessage(m_Dlg, IDC_INT8, BM_SETCHECK, m_pAudioStatus->IsSampleFormatSupported(SampleFormat_U8), 0);
@@ -338,34 +533,45 @@ HRESULT CLAVAudioStatusProp::OnActivate()
   SendDlgItemMessage(m_Dlg, IDC_INT32, BM_SETCHECK, m_pAudioStatus->IsSampleFormatSupported(SampleFormat_32), 0);
   SendDlgItemMessage(m_Dlg, IDC_FP32, BM_SETCHECK, m_pAudioStatus->IsSampleFormatSupported(SampleFormat_FP32), 0);
 
-  const char *decodeFormat = NULL;
   const char *outputFormat = NULL;
-  DWORD dwChannelMask = 0;
-  hr = m_pAudioStatus->GetOutputDetails(&decodeFormat, &outputFormat, &dwChannelMask);
+  int nOutputChannels = 0;
+  int nOutputSampleRate = 0;
+  DWORD dwOutputChannelMask = 0;
+  hr = m_pAudioStatus->GetOutputDetails(&outputFormat, &nOutputChannels, &nOutputSampleRate, &dwOutputChannelMask);
   if (SUCCEEDED(hr)) {
     WCHAR buffer[100];
 
-    _snwprintf_s(buffer, _TRUNCATE, L"%S", decodeFormat);
-    SendDlgItemMessage(m_Dlg, IDC_DECODE_FORMAT, WM_SETTEXT, 0, (LPARAM)buffer);
+    if (hr == S_OK) {
+      _snwprintf_s(buffer, _TRUNCATE, L"%d / 0x%x", nOutputChannels, dwOutputChannelMask);
+      SendDlgItemMessage(m_Dlg, IDC_OUTPUT_CHANNEL, WM_SETTEXT, 0, (LPARAM)buffer);
 
-    _snwprintf_s(buffer, _TRUNCATE, L"%S", outputFormat);
-    SendDlgItemMessage(m_Dlg, IDC_OUTPUT_FORMAT, WM_SETTEXT, 0, (LPARAM)buffer);
+      _snwprintf_s(buffer, _TRUNCATE, L"%d", nOutputSampleRate);
+      SendDlgItemMessage(m_Dlg, IDC_OUTPUT_SAMPLERATE, WM_SETTEXT, 0, (LPARAM)buffer);
 
-    _snwprintf_s(buffer, _TRUNCATE, L"0x%x", dwChannelMask);
-    SendDlgItemMessage(m_Dlg, IDC_CHANNEL_MASK, WM_SETTEXT, 0, (LPARAM)buffer);
+      _snwprintf_s(buffer, _TRUNCATE, L"PCM");
+      SendDlgItemMessage(m_Dlg, IDC_OUTPUT_CODEC, WM_SETTEXT, 0, (LPARAM)buffer);
+
+      _snwprintf_s(buffer, _TRUNCATE, L"%S", outputFormat);
+      SendDlgItemMessage(m_Dlg, IDC_OUTPUT_FORMAT, WM_SETTEXT, 0, (LPARAM)buffer);
+
+      m_nChannels = nOutputChannels;
+    } else {
+      _snwprintf_s(buffer, _TRUNCATE, L"Bitstreaming");
+      SendDlgItemMessage(m_Dlg, IDC_OUTPUT_CODEC, WM_SETTEXT, 0, (LPARAM)buffer);
+    }
   }
 
   SetTimer(m_Dlg, 1, 250, NULL);
   m_pAudioStatus->EnableVolumeStats();
 
   WCHAR chBuffer[5];
-  if (dwChannelMask == 0 && nChannels != 0) {
+  if (dwOutputChannelMask == 0 && nOutputChannels != 0) {
     // 0x4 is only front center, 0x3 is front left+right
-    dwChannelMask = nChannels == 1 ? 0x4 : 0x3;
+    dwOutputChannelMask = nOutputChannels == 1 ? 0x4 : 0x3;
   }
   for(int i = 0; i < MAX_CHANNELS; ++i) {
     SendDlgItemMessage(m_Dlg, iddVolumeControls[i], PBM_SETRANGE, 0, MAKELPARAM(0, 50));
-    _snwprintf_s(chBuffer, _TRUNCATE, L"%S", get_channel_desc(get_flag_from_channel(dwChannelMask, i)));
+    _snwprintf_s(chBuffer, _TRUNCATE, L"%S", get_channel_desc(get_flag_from_channel(dwOutputChannelMask, i)));
     SendDlgItemMessage(m_Dlg, iddVolumeDescs[i], WM_SETTEXT, 0, (LPARAM)chBuffer);
   }
 

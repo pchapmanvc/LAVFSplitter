@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  *  Contributions by Ti-BEN from the XBMC DSPlayer Project, also under GPLv2
@@ -96,7 +95,7 @@ HRESULT CLAVOutputPin::DecideBufferSize(IMemAllocator* pAlloc, ALLOCATOR_PROPERT
   ALLOCATOR_PROPERTIES Actual;
   if(FAILED(hr = pAlloc->SetProperties(pProperties, &Actual))) return hr;
   if(Actual.cbBuffer < pProperties->cbBuffer) return E_FAIL;
-  ASSERT(Actual.cBuffers == pProperties->cBuffers);
+  ASSERT(Actual.cBuffers >= pProperties->cBuffers);
 
   return S_OK;
 }
@@ -115,6 +114,7 @@ HRESULT CLAVOutputPin::CheckMediaType(const CMediaType* pmt)
 
 HRESULT CLAVOutputPin::GetMediaType(int iPosition, CMediaType* pmt)
 {
+  DbgLog((LOG_TRACE, 10, L"CLAVOutputPin::GetMediaType(): %s, position: %d", CBaseDemuxer::CStreamList::ToStringW(m_pinType), iPosition));
   CAutoLock cAutoLock(m_pLock);
 
   if(iPosition < 0) return E_INVALIDARG;
@@ -148,6 +148,26 @@ HRESULT CLAVOutputPin::Inactive()
   m_queue.Clear();
 
   return __super::Inactive();
+}
+
+STDMETHODIMP CLAVOutputPin::Connect(IPin* pReceivePin, const AM_MEDIA_TYPE* pmt)
+{
+  HRESULT  hr;
+  PIN_INFO PinInfo;
+  GUID     FilterClsid;
+
+  if (SUCCEEDED (pReceivePin->QueryPinInfo (&PinInfo))) {
+    if (SUCCEEDED (PinInfo.pFilter->GetClassID(&FilterClsid))) {
+      if (FilterClsid == CLSID_DMOWrapperFilter) {
+        (static_cast<CLAVSplitter*>(m_pFilter))->SetFakeASFReader(TRUE);
+      }
+    }
+    PinInfo.pFilter->Release();
+  }
+
+  hr = __super::Connect (pReceivePin, pmt);
+  (static_cast<CLAVSplitter*>(m_pFilter))->SetFakeASFReader(FALSE);
+  return hr;
 }
 
 HRESULT CLAVOutputPin::DeliverBeginFlush()
@@ -206,10 +226,12 @@ HRESULT CLAVOutputPin::QueuePacket(Packet *pPacket)
   CLAVSplitter *pSplitter = static_cast<CLAVSplitter*>(m_pFilter);
 
   // While everything is good AND no pin is drying AND the queue is full .. sleep
+  // The queu has a "soft" limit of MAX_PACKETS_IN_QUEUE, and a hard limit of MAX_PACKETS_IN_QUEUE * 2
+  // That means, even if one pin is drying, we'll never exceed MAX_PACKETS_IN_QUEUE * 2
   while(S_OK == m_hrDeliver 
-    && !pSplitter->IsAnyPinDrying()
-    && m_queue.Size() > MAX_PACKETS_IN_QUEUE)
-    Sleep(1);
+    && (m_queue.Size() > 2*MAX_PACKETS_IN_QUEUE
+    || (m_queue.Size() > MAX_PACKETS_IN_QUEUE && !pSplitter->IsAnyPinDrying())))
+    Sleep(10);
 
   if(S_OK != m_hrDeliver) {
     SAFE_DELETE(pPacket);
@@ -252,10 +274,7 @@ DWORD CLAVOutputPin::ThreadProc()
   m_hrDeliver = S_OK;
   m_fFlushing = m_fFlushed = false;
   m_eEndFlush.Set();
-  if(IsVideoPin() && IsConnected()) {
-    GetConnected()->BeginFlush();
-    GetConnected()->EndFlush();
-  }
+  bool bFailFlush = false;
 
   while(1) {
     Sleep(1);
@@ -293,11 +312,22 @@ DWORD CLAVOutputPin::ThreadProc()
         m_eEndFlush.Wait();
 
         if(hr != S_OK && !m_fFlushed) {
-          m_hrDeliver = hr;
+          DbgLog((LOG_TRACE, 10, L"OutputPin::ThreadProc(): Delivery failed on %s pin, hr: %0#.8x", CBaseDemuxer::CStreamList::ToStringW(GetPinType()), hr));
+          if (!bFailFlush && hr == S_FALSE) {
+            DbgLog((LOG_TRACE, 10, L"OutputPin::ThreadProc(): Trying to revive it by flushing..."));
+            GetConnected()->BeginFlush();
+            GetConnected()->EndFlush();
+            bFailFlush = true;
+          } else {
+            m_hrDeliver = hr;
+          }
           break;
         }
+      } else if (pPacket) {
+        // in case of stream switches or other events, we may end up here
+        SAFE_DELETE(pPacket);
       }
-    } while(cnt > 1);
+    } while(cnt > 1 && m_hrDeliver == S_OK);
   }
   return 0;
 }
@@ -307,7 +337,7 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
   HRESULT hr = S_OK;
   IMediaSample *pSample = NULL;
 
-  long nBytes = pPacket->GetDataSize();
+  long nBytes = (long)pPacket->GetDataSize();
 
   if(nBytes == 0) {
     goto done;
@@ -344,7 +374,6 @@ HRESULT CLAVOutputPin::DeliverPacket(Packet *pPacket)
   }
 
   bool fTimeValid = pPacket->rtStart != Packet::INVALID_TIME;
-  ASSERT(!pPacket->bSyncPoint || fTimeValid);
 
   // Fill the sample
   BYTE* pData = NULL;

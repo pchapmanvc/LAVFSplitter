@@ -2,21 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
- *
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -77,12 +75,12 @@ static void bd_log(const char *log) {
   if (log[len-1] == '\n') {
     len--;
   }
-  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, log, len, line, 4096);
+  MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, log, (int)len, line, 4096);
   DbgLog((LOG_TRACE, 40, L"[BD] %s", line));
 }
 #endif
 
-CBDDemuxer::CBDDemuxer(CCritSec *pLock, ILAVFSettings *pSettings)
+CBDDemuxer::CBDDemuxer(CCritSec *pLock, ILAVFSettingsInternal *pSettings)
   : CBaseDemuxer(L"bluray demuxer", pLock)
   , m_lavfDemuxer(NULL)
   , m_pb(NULL)
@@ -128,6 +126,10 @@ STDMETHODIMP CBDDemuxer::NonDelegatingQueryInterface(REFIID riid, void** ppv)
 
   *ppv = NULL;
 
+  if (m_lavfDemuxer && (riid == __uuidof(IKeyFrameInfo) || riid == __uuidof(ITrackInfo))) {
+    return m_lavfDemuxer->QueryInterface(riid, ppv);
+  }
+
   return
     QI2(IAMExtendedSeeking)
     __super::NonDelegatingQueryInterface(riid, ppv);
@@ -172,10 +174,23 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName)
       return E_FAIL;
     }
     m_pBD = bd;
+
+    uint32_t timelimit = (iPlaylist != -1) ? 0 : 180;
+    uint8_t flags = (iPlaylist != -1) ? TITLES_ALL : TITLES_RELEVANT;
+
     // Fetch titles
-    m_nTitleCount = bd_get_titles(bd, (iPlaylist != -1) ? TITLES_ALL : TITLES_RELEVANT);
+fetchtitles:
+    m_nTitleCount = bd_get_titles(bd, flags, timelimit);
 
     if (m_nTitleCount <= 0) {
+      if (timelimit > 0) {
+        timelimit = 0;
+        goto fetchtitles;
+      }
+      if (flags != TITLES_ALL) {
+        flags = TITLES_ALL;
+        goto fetchtitles;
+      }
       return E_FAIL;
     }
 
@@ -186,7 +201,7 @@ STDMETHODIMP CBDDemuxer::Open(LPCOLESTR pszFileName)
     uint32_t title_id = 0;
     boolean found = false;
     for(uint32_t i = 0; i < m_nTitleCount; i++) {
-      BLURAY_TITLE_INFO *info = bd_get_title_info(bd, i);
+      BLURAY_TITLE_INFO *info = bd_get_title_info(bd, i, 0);
       if (info) {
         DbgLog((LOG_TRACE, 20, L"Title %u, Playlist %u (%u clips, %u chapters), Duration %I64u (%I64u seconds)", i, info->playlist, info->clip_count, info->chapter_count, info->duration, Convert90KhzToDSTime(info->duration) / DSHOW_TIME_BASE));
         if (iPlaylist != -1 && info->playlist == iPlaylist) {
@@ -224,7 +239,7 @@ void CBDDemuxer::ProcessBDEvents()
   while(bd_get_event(m_pBD, &event)) {
     if (event.event == BD_EVENT_PLAYITEM) {
       uint64_t clip_start, clip_in, bytepos;
-      int ret = bd_get_clip_infos(m_pBD, event.param, &clip_start, &clip_in, &bytepos);
+      int ret = bd_get_clip_infos(m_pBD, event.param, &clip_start, &clip_in, &bytepos, NULL);
       if (ret) {
         m_rtNewOffset = Convert90KhzToDSTime(clip_start - clip_in) + m_lavfDemuxer->GetStartTime();
         m_bNewOffsetPos = bytepos;
@@ -262,7 +277,12 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
   if (m_pTitle) {
     bd_free_title_info(m_pTitle);
   }
-  m_pTitle = bd_get_title_info(m_pBD, idx);
+
+  // Init Event Queue
+  bd_get_event(m_pBD, NULL);
+
+  // Select title
+  m_pTitle = bd_get_title_info(m_pBD, idx, 0);
   ret = bd_select_title(m_pBD, idx);
   if (ret == 0) {
     return E_FAIL;
@@ -281,6 +301,7 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
 
   m_lavfDemuxer = new CLAVFDemuxer(m_pLock, m_pSettings);
   m_lavfDemuxer->AddRef();
+  m_lavfDemuxer->SetBluRay(this);
   if (FAILED(hr = m_lavfDemuxer->OpenInputStream(m_pb))) {
     SafeRelease(&m_lavfDemuxer);
     return hr;
@@ -293,13 +314,16 @@ STDMETHODIMP CBDDemuxer::SetTitle(int idx)
   memset(m_rtOffset, 0, sizeof(REFERENCE_TIME) * m_lavfDemuxer->GetNumStreams());
 
   DbgLog((LOG_TRACE, 20, L"Opened BD title with %d clips and %d chapters", m_pTitle->clip_count, m_pTitle->chapter_count));
+  return S_OK;
+}
+
+void CBDDemuxer::ProcessClipLanguages()
+{
   ASSERT(m_pTitle->clip_count >= 1 && m_pTitle->clips);
   for (uint32_t i = 0; i < m_pTitle->clip_count; ++i) {
     BLURAY_CLIP_INFO *clip = &m_pTitle->clips[i];
     ProcessStreams(clip->raw_stream_count, clip->raw_streams);
   }
-
-  return S_OK;
 }
 
 STDMETHODIMP CBDDemuxer::GetNumTitles(uint32_t *count)
@@ -315,7 +339,7 @@ STDMETHODIMP CBDDemuxer::GetTitleInfo(uint32_t idx, REFERENCE_TIME *rtDuration, 
 {
   if (idx >= m_nTitleCount) { return E_FAIL; }
 
-  BLURAY_TITLE_INFO *info = bd_get_title_info(m_pBD, idx);
+  BLURAY_TITLE_INFO *info = bd_get_title_info(m_pBD, idx, 0);
   if (info) {
     if (rtDuration) {
       *rtDuration = Convert90KhzToDSTime(info->duration);

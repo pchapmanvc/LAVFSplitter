@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  */
@@ -23,7 +22,7 @@
 #include "stdafx.h"
 #include "H264Nalu.h"
 
-void CH264Nalu::SetBuffer(BYTE* pBuffer, int nSize, int nNALSize)
+void CH264Nalu::SetBuffer(const BYTE* pBuffer, int nSize, int nNALSize)
 {
   m_pBuffer      = pBuffer;
   m_nSize        = nSize;
@@ -35,28 +34,31 @@ void CH264Nalu::SetBuffer(BYTE* pBuffer, int nSize, int nNALSize)
   m_nNALDataPos  = 0;
 }
 
-bool CH264Nalu::MoveToNextStartcode()
+bool CH264Nalu::MoveToNextAnnexBStartcode()
 {
-  int nBuffEnd = (m_nNextRTP > 0) ? min (m_nNextRTP, m_nSize-4) : m_nSize-4;
+	int nBuffEnd = m_nSize - 4;
 
-  for (int i=m_nCurPos; i<nBuffEnd; i++)
-  {
-    if (*((DWORD*)(m_pBuffer+i)) == 0x01000000 || (*((DWORD*)(m_pBuffer+i)) & 0x00FFFFFF) == 0x00010000)
-    {
-      // Find next AnnexB Nal
-      m_nCurPos = i;
-      return true;
-    }
-  }
+	for (int i=m_nCurPos; i<nBuffEnd; i++) {
+		if ((*((DWORD*)(m_pBuffer+i)) & 0x00FFFFFF) == 0x00010000) {
+			// Find next AnnexB Nal
+			m_nCurPos = i;
+			return true;
+		}
+	}
 
-  if ((m_nNALSize != 0) && (m_nNextRTP < m_nSize))
-  {
-    m_nCurPos = m_nNextRTP;
-    return true;
-  }
+	m_nCurPos = m_nSize;
+	return false;
+}
 
-  m_nCurPos = m_nSize;
-  return false;
+bool CH264Nalu::MoveToNextRTPStartcode()
+{
+	if (m_nNextRTP < m_nSize) {
+		m_nCurPos = m_nNextRTP;
+		return true;
+	}
+
+	m_nCurPos = m_nSize;
+	return false;
 }
 
 bool CH264Nalu::ReadNext()
@@ -69,13 +71,13 @@ bool CH264Nalu::ReadNext()
     // RTP Nalu type : (XX XX) XX XX NAL..., with XX XX XX XX or XX XX equal to NAL size
     m_nNALStartPos = m_nCurPos;
     m_nNALDataPos  = m_nCurPos + m_nNALSize;
-    int nTemp      = 0;
+    unsigned nTemp = 0;
     for (int i=0; i<m_nNALSize; i++)
     {
       nTemp = (nTemp << 8) + m_pBuffer[m_nCurPos++];
     }
     m_nNextRTP += nTemp + m_nNALSize;
-    MoveToNextStartcode();
+    MoveToNextRTPStartcode();
   }
   else
   {
@@ -87,7 +89,7 @@ bool CH264Nalu::ReadNext()
     m_nNALStartPos = m_nCurPos;
     m_nCurPos     += 3;
     m_nNALDataPos  = m_nCurPos;
-    MoveToNextStartcode();
+    MoveToNextAnnexBStartcode();
   }
 
   forbidden_bit     = (m_pBuffer[m_nNALDataPos]>>7) & 1;

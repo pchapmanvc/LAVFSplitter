@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -23,7 +22,7 @@
 
 #include "LAVSplitter.h"
 
-#define READ_BUFFER_SIZE 4096
+#define READ_BUFFER_SIZE 32768
 
 
 CLAVInputPin::CLAVInputPin(TCHAR *pName, CLAVSplitter *pFilter, CCritSec *pLock, HRESULT *phr)
@@ -50,7 +49,8 @@ STDMETHODIMP CLAVInputPin::NonDelegatingQueryInterface(REFIID riid, void** ppv)
 
 HRESULT CLAVInputPin::CheckMediaType(const CMediaType* pmt)
 {
-  return pmt->majortype == MEDIATYPE_Stream ? S_OK : VFW_E_TYPE_NOT_ACCEPTED;
+  //return pmt->majortype == MEDIATYPE_Stream ? S_OK : VFW_E_TYPE_NOT_ACCEPTED;
+  return S_OK;
 }
 
 HRESULT CLAVInputPin::CheckConnect(IPin* pPin)
@@ -118,6 +118,8 @@ HRESULT CLAVInputPin::CompleteConnect(IPin* pPin)
 int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 {
   CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
+  CAutoLock lock(pin);
+
   HRESULT hr = pin->m_pAsyncReader->SyncRead(pin->m_llPos, buf_size, buf);
   if (FAILED(hr)) {
     return -1;
@@ -139,6 +141,8 @@ int CLAVInputPin::Read(void *opaque, uint8_t *buf, int buf_size)
 int64_t CLAVInputPin::Seek(void *opaque,  int64_t offset, int whence)
 {
   CLAVInputPin *pin = static_cast<CLAVInputPin *>(opaque);
+  CAutoLock lock(pin);
+
   int64_t pos = 0;
 
   LONGLONG total = 0;

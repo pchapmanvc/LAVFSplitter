@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Contributions by Ti-BEN from the XBMC DSPlayer Project, also under GPLv2
  */
@@ -30,7 +29,31 @@
 
 CLAVFAudioHelper g_AudioHelper;
 
-CMediaType CLAVFAudioHelper::initAudioType(CodecID codecId, unsigned int &codecTag)
+// Map codec ids to media subtypes
+static FormatMapping audio_map[] = {
+  { CODEC_ID_AC3,        &MEDIASUBTYPE_DOLBY_AC3,         WAVE_FORMAT_DOLBY_AC3,  NULL },
+  { CODEC_ID_AAC,        &MEDIASUBTYPE_AAC,               WAVE_FORMAT_AAC,        NULL },
+  { CODEC_ID_AAC_LATM,   &MEDIASUBTYPE_LATM_AAC,          WAVE_FORMAT_LATM_AAC,   NULL },
+  { CODEC_ID_DTS,        &MEDIASUBTYPE_WAVE_DTS,          NULL,                   NULL },
+  { CODEC_ID_EAC3,       &MEDIASUBTYPE_DOLBY_DDPLUS,      NULL,                   NULL },
+  { CODEC_ID_TRUEHD,     &MEDIASUBTYPE_DOLBY_TRUEHD,      NULL,                   NULL },
+  { CODEC_ID_MLP,        &MEDIASUBTYPE_MLP,               WAVE_FORMAT_MLP,        NULL },
+  { CODEC_ID_VORBIS,     &MEDIASUBTYPE_Vorbis2,           NULL,                   &FORMAT_VorbisFormat2 },
+  { CODEC_ID_MP1,        &MEDIASUBTYPE_MPEG1AudioPayload, WAVE_FORMAT_MPEG,       NULL },
+  { CODEC_ID_MP2,        &MEDIASUBTYPE_MPEG2_AUDIO,       WAVE_FORMAT_MPEG,       NULL },
+  { CODEC_ID_MP3,        &MEDIASUBTYPE_MP3,               WAVE_FORMAT_MPEGLAYER3, NULL },
+  { CODEC_ID_PCM_BLURAY, &MEDIASUBTYPE_BD_LPCM_AUDIO,     NULL,                   NULL },
+  { CODEC_ID_PCM_DVD,    &MEDIASUBTYPE_DVD_LPCM_AUDIO,    NULL,                   NULL },
+  { CODEC_ID_PCM_S16LE,  &MEDIASUBTYPE_PCM,               WAVE_FORMAT_PCM,        NULL },
+  { CODEC_ID_PCM_S24LE,  &MEDIASUBTYPE_PCM,               WAVE_FORMAT_PCM,        NULL },
+  { CODEC_ID_PCM_S32LE,  &MEDIASUBTYPE_PCM,               WAVE_FORMAT_PCM,        NULL },
+  { CODEC_ID_PCM_F32LE,  &MEDIASUBTYPE_IEEE_FLOAT,        WAVE_FORMAT_IEEE_FLOAT, NULL },
+  { CODEC_ID_WMAV1,      &MEDIASUBTYPE_WMAUDIO1,          WAVE_FORMAT_MSAUDIO1,   NULL },
+  { CODEC_ID_WMAV2,      &MEDIASUBTYPE_WMAUDIO2,          WAVE_FORMAT_WMAUDIO2,   NULL },
+  { CODEC_ID_WMAPRO,     &MEDIASUBTYPE_WMAUDIO3,          WAVE_FORMAT_WMAUDIO3,   NULL },
+};
+
+CMediaType CLAVFAudioHelper::initAudioType(CodecID codecId, unsigned int &codecTag, std::string container)
 {
   CMediaType mediaType;
   mediaType.InitMediaType();
@@ -39,60 +62,29 @@ CMediaType CLAVFAudioHelper::initAudioType(CodecID codecId, unsigned int &codecT
   mediaType.formattype = FORMAT_WaveFormatEx; //default value
   mediaType.SetSampleSize(256000);
 
+  // Check against values from the map above
+  for(unsigned i = 0; i < countof(audio_map); ++i) {
+    if (audio_map[i].codec == codecId) {
+      if (audio_map[i].subtype)
+        mediaType.subtype = *audio_map[i].subtype;
+      if (audio_map[i].codecTag)
+        codecTag = audio_map[i].codecTag;
+      if (audio_map[i].format)
+         mediaType.formattype = *audio_map[i].format;
+      break;
+    }
+  }
+
   // special cases
   switch(codecId)
   {
-  case CODEC_ID_AC3:
-    mediaType.subtype = MEDIASUBTYPE_DOLBY_AC3;
-    break;
-  case CODEC_ID_AAC:
-    mediaType.subtype = MEDIASUBTYPE_AAC;
-    codecTag = WAVE_FORMAT_AAC;
-    break;
-  case CODEC_ID_AAC_LATM:
-    mediaType.subtype = MEDIASUBTYPE_LATM_AAC;
-    codecTag = WAVE_FORMAT_LATM_AAC;
-    break;
-  case CODEC_ID_DTS:
-    mediaType.subtype = MEDIASUBTYPE_DTS;
-    codecTag = WAVE_FORMAT_DTS;
-    break;
-  case CODEC_ID_EAC3:
-    mediaType.subtype = MEDIASUBTYPE_DOLBY_DDPLUS;
-    break;
-  case CODEC_ID_TRUEHD:
-    mediaType.subtype = MEDIASUBTYPE_DOLBY_TRUEHD;
-    break;
-  case CODEC_ID_VORBIS:
-    mediaType.formattype = FORMAT_VorbisFormat2;
-    mediaType.subtype = MEDIASUBTYPE_Vorbis2;
-    break;
-  case CODEC_ID_MP1:
-    mediaType.subtype = MEDIASUBTYPE_MPEG1AudioPayload;
-    break;
-  case CODEC_ID_MP2:
-    mediaType.subtype = MEDIASUBTYPE_MPEG2_AUDIO;
-    break;
-  case CODEC_ID_MP3:
-    mediaType.subtype = MEDIASUBTYPE_MP3;
-    break;
-  case CODEC_ID_PCM_BLURAY:
-    mediaType.subtype = MEDIASUBTYPE_BD_LPCM_AUDIO;
-    break;
-  case CODEC_ID_PCM_DVD:
-    mediaType.subtype = MEDIASUBTYPE_DVD_LPCM_AUDIO;
-    break;
-  case CODEC_ID_PCM_S16LE:
-  case CODEC_ID_PCM_S24LE:
-  case CODEC_ID_PCM_S32LE:
-    mediaType.subtype = MEDIASUBTYPE_PCM;
-    break;
-  case CODEC_ID_PCM_F32LE:
-    mediaType.subtype = MEDIASUBTYPE_IEEE_FLOAT;
-    break;
   case CODEC_ID_PCM_F64LE:
     // Qt PCM
     if (codecTag == MKTAG('f', 'l', '6', '4')) mediaType.subtype = MEDIASUBTYPE_PCM_FL64_le;
+    break;
+  case CODEC_ID_PCM_S16BE:
+    if (container == "mpeg")
+       mediaType.subtype = MEDIASUBTYPE_DVD_LPCM_AUDIO;
     break;
   }
   return mediaType;
@@ -104,8 +96,8 @@ WAVEFORMATEX *CLAVFAudioHelper::CreateWVFMTEX(const AVStream *avstream, ULONG *s
 
   wvfmt->wFormatTag = avstream->codec->codec_tag;
 
-  wvfmt->nChannels = avstream->codec->channels;
-  wvfmt->nSamplesPerSec = avstream->codec->sample_rate;
+  wvfmt->nChannels = avstream->codec->channels ? avstream->codec->channels : 2;
+  wvfmt->nSamplesPerSec = avstream->codec->sample_rate ? avstream->codec->sample_rate : 48000;
   wvfmt->nAvgBytesPerSec = avstream->codec->bit_rate / 8;
 
   if(avstream->codec->codec_id == CODEC_ID_AAC || avstream->codec->codec_id == CODEC_ID_AAC_LATM) {
@@ -202,7 +194,7 @@ WAVEFORMATEX_HDMV_LPCM *CLAVFAudioHelper::CreateWVFMTEX_LPCM(const AVStream *avs
 WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avstream, ULONG *size, const GUID subtype)
 {
   WAVEFORMATEXTENSIBLE *wfex = (WAVEFORMATEXTENSIBLE *)CoTaskMemAlloc(sizeof(WAVEFORMATEXTENSIBLE));
-  memset(wfex, 0, sizeof(wfex));
+  memset(wfex, 0, sizeof(*wfex));
 
   WAVEFORMATEX *wfe = &wfex->Format;
   wfe->wFormatTag = (WORD)subtype.Data1;
@@ -233,9 +225,11 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
       wfex->Samples.wValidBitsPerSample = wfex->Format.wBitsPerSample;
     }
     wfex->SubFormat = subtype;
+    *size = sizeof(WAVEFORMATEXTENSIBLE);
+  } else {
+    *size = sizeof(WAVEFORMATEX);
   }
 
-  *size = sizeof(WAVEFORMATEXTENSIBLE);
   return wfex;
 }
 

@@ -16,13 +16,15 @@ make distclean
 
 OPTIONS="
 --enable-shared \
---enable-memalign-hack \
 --enable-gpl \
---enable-w32threads \
+--enable-version2 \
+--enable-pthreads \
 --enable-runtime-cpudetect \
 --enable-asm \
 --disable-postproc \
 --enable-zlib \
+--enable-swscale \
+--disable-swresample \
 --disable-static \
 --disable-altivec \
 --disable-muxers \
@@ -31,26 +33,27 @@ OPTIONS="
 --disable-ffplay \
 --disable-ffserver \
 --disable-ffmpeg \
+--disable-avconv \
 --disable-ffprobe \
 --disable-devices \
 --disable-filters \
 --disable-avfilter \
---disable-swscale \
 --disable-avdevice \
 --disable-hwaccels \
 --disable-bsfs \
 --disable-network \
 --disable-protocols \
 --enable-protocol=file \
---enable-audio-float \
---arch=x86 --target-os=mingw32"
+--enable-muxer=spdif \
+--arch=x86 --cpu=i686 --target-os=mingw32 \
+--build-suffix=-lav"
 
-./configure --extra-cflags="-march=i686 -mmmx" ${OPTIONS} &&
+./configure --extra-libs="-lwsock32" --extra-cflags="-mmmx -msse -DPTW32_STATIC_LIB" ${OPTIONS} &&
  
 make -j8 &&
-cp lib*/*-*.dll ../bin_Win32 &&
+cp lib*/*-lav-*.dll ../bin_Win32 &&
 cp lib*/*.lib ../bin_Win32/lib &&
-cp lib*/*-*.dll ../bin_Win32d &&
+cp lib*/*-lav-*.dll ../bin_Win32d &&
 cp lib*/*.lib ../bin_Win32d/lib &&
 
 cd ..

@@ -2,48 +2,40 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #pragma once
 
 #include <Unknwn.h>       // IUnknown and GUID Macros
-#include <set>
 
+// {774A919D-EA95-4A87-8A1E-F48ABE8499C7}
+DEFINE_GUID(IID_ILAVFSettings, 
+0x774a919d, 0xea95, 0x4a87, 0x8a, 0x1e, 0xf4, 0x8a, 0xbe, 0x84, 0x99, 0xc7);
 
-class FormatInfo {
-public:
-  FormatInfo() : strName(NULL), strDescription(NULL) {}
-  FormatInfo(const char *name, const char *desc) : strName(name), strDescription(desc) {}
-  const char *strName;
-  const char *strDescription;
-
-  // Comparison operators for sorting (NULL safe)
-  bool FormatInfo::operator < (const FormatInfo& rhs) const { return strName ? (rhs.strName ? _stricmp(strName, rhs.strName) < 0 : false) : true; }
-  bool FormatInfo::operator > (const FormatInfo& rhs) const { return !(*this < rhs); }
-  bool FormatInfo::operator == (const FormatInfo& rhs) const { return (strName == rhs.strName) || (strName && rhs.strName && (_stricmp(strName, rhs.strName) == 0)); }
-};
-
-// GUID: 72b2c5fa-a7a5-4463-9c1b-9f4749c35c79
-DEFINE_GUID(IID_ILAVFSettings, 0x72b2c5fa, 0xa7a5, 
-0x4463, 0x9c, 0x1b, 0x9f, 0x47, 0x49, 0xc3, 0x5c, 0x79);
-
-[uuid("72b2c5fa-a7a5-4463-9c1b-9f4749c35c79")]
+[uuid("774A919D-EA95-4A87-8A1E-F48ABE8499C7")]
 interface ILAVFSettings : public IUnknown
 {
+  // Switch to Runtime Config mode. This will reset all settings to default, and no changes to the settings will be saved
+  // You can use this to programmatically configure LAV Splitter without interfering with the users settings in the registry.
+  // Subsequent calls to this function will reset all settings back to defaults, even if the mode does not change.
+  //
+  // Note that calling this function during playback is not supported and may exhibit undocumented behaviour. 
+  // For smooth operations, it must be called before LAV Splitter opens a file.
+  STDMETHOD(SetRuntimeConfig)(BOOL bRuntimeConfig) = 0;
+
   // Retrieve the preferred languages as ISO 639-2 language codes, comma seperated
   // If the result is NULL, no language has been set
   // Memory for the string will be allocated, and has to be free'ed by the caller with CoTaskMemFree
@@ -80,6 +72,20 @@ interface ILAVFSettings : public IUnknown
   // TRUE = Only subtitles with a language in the preferred list will be used; FALSE = All subtitles will be used
   STDMETHOD(SetSubtitleMatchingLanguage)(BOOL dwMode) = 0;
 
+  // Control wether a special "Forced Subtitles" stream will be created for PGS subs
+  STDMETHOD_(BOOL,GetPGSForcedStream)() = 0;
+
+  // Control wether a special "Forced Subtitles" stream will be created for PGS subs
+  STDMETHOD(SetPGSForcedStream)(BOOL bFlag) = 0;
+
+  // Get the PGS forced subs config
+  // TRUE = only forced PGS frames will be shown, FALSE = all frames will be shown
+  STDMETHOD_(BOOL,GetPGSOnlyForced)() = 0;
+
+  // Set the PGS forced subs config
+  // TRUE = only forced PGS frames will be shown, FALSE = all frames will be shown
+  STDMETHOD(SetPGSOnlyForced)(BOOL bForced) = 0;
+
   // Get the VC-1 Timestamp Processing mode
   // 0 - No Timestamp Correction, 1 - Always Timestamp Correction, 2 - Auto (Correction for Decoders that need it)
   STDMETHOD_(int,GetVC1TimestampMode)() = 0;
@@ -88,30 +94,33 @@ interface ILAVFSettings : public IUnknown
   // 0 - No Timestamp Correction, 1 - Always Timestamp Correction, 2 - Auto (Correction for Decoders that need it)
   STDMETHOD(SetVC1TimestampMode)(int iMode) = 0;
 
-  STDMETHOD_(BOOL,IsVC1CorrectionRequired)() = 0;
-
   // Set whether substreams (AC3 in TrueHD, for example) should be shown as a seperate stream
   STDMETHOD(SetSubstreamsEnabled)(BOOL bSubStreams) = 0;
 
   // Check whether substreams (AC3 in TrueHD, for example) should be shown as a seperate stream
   STDMETHOD_(BOOL,GetSubstreamsEnabled)() = 0;
 
+  // Set if the ffmpeg parsers should be used for video streams
   STDMETHOD(SetVideoParsingEnabled)(BOOL bEnabled) = 0;
+  
+  // Query if the ffmpeg parsers are being used for video streams
   STDMETHOD_(BOOL,GetVideoParsingEnabled)() = 0;
 
-  STDMETHOD(SetAudioParsingEnabled)(BOOL bEnabled) = 0;
-  STDMETHOD_(BOOL,GetAudioParsingEnabled)() = 0;
+  // Set if LAV Splitter should try to fix broken HD-PVR streams
+  STDMETHOD(SetFixBrokenHDPVR)(BOOL bEnabled) = 0;
 
-  STDMETHOD(SetGeneratePTS)(BOOL bEnabled) = 0;
-  STDMETHOD_(BOOL,GetGeneratePTS)() = 0;
+  // Query if LAV Splitter should try to fix broken HD-PVR streams
+  STDMETHOD_(BOOL,GetFixBrokenHDPVR)() = 0;
+
+  // Control wether the givne format is enabled
+  STDMETHOD_(HRESULT,SetFormatEnabled)(const char *strFormat, BOOL bEnabled) = 0;
 
   // Check if the given format is enabled
   STDMETHOD_(BOOL,IsFormatEnabled)(const char *strFormat) = 0;
 
-  // Check if the given format is enabled
-  STDMETHOD_(HRESULT,SetFormatEnabled)(const char *strFormat, BOOL bEnabled) = 0;
-  STDMETHOD(SaveSettings)() = 0;
+  // Set if LAV Splitter should always completely remove the filter connected to its Audio Pin when the audio stream is changed
+  STDMETHOD(SetStreamSwitchRemoveAudio)(BOOL bEnabled) = 0;
 
-  STDMETHOD_(const char*, GetInputFormat)() = 0;
-  STDMETHOD_(std::set<FormatInfo>&, GetInputFormats)() = 0;
+  // Query if LAV Splitter should always completely remove the filter connected to its Audio Pin when the audio stream is changed
+  STDMETHOD_(BOOL,GetStreamSwitchRemoveAudio)() = 0;
 };

@@ -2,25 +2,26 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  */
 
 #pragma once
+
+#include <stdint.h>
 
 /**
 * Byte Parser Utility Class
@@ -29,16 +30,16 @@ class CByteParser
 {
 public:
   /** Construct a Byte Parser to parse the given BYTE array with the given length */
-  CByteParser(const BYTE *pData, uint32_t length);
+  CByteParser(const BYTE *pData, unsigned int length);
   virtual ~CByteParser();
 
   /** Read 1 to 32 Bits from the Byte Array. If peek is set, the data will just be returned, and the buffer not advanced. */
-  uint32_t BitRead(uint8_t numBits, bool peek = false);
+  unsigned int BitRead(unsigned int numBits, bool peek = false);
 
   /** Read a unsigned number in Exponential Golomb encoding (with k = 0) */
-  uint64_t UExpGolombRead();
+  unsigned int UExpGolombRead();
   /** Read a signed number in Exponential Golomb encoding (with k = 0) */
-  int64_t SExpGolombRead();
+  int SExpGolombRead();
 
   /** Seek to the position (in bytes) in the byte array */
   void Seek(DWORD pos);
@@ -49,11 +50,14 @@ public:
   const BYTE *End() const { return m_pEnd; }
 
   /** Overall length (in bytes) of the byte array */
-  uint32_t Length() const { return m_dwLen; }
+  unsigned int Length() const { return m_dwLen; }
   /** Current byte position in the array. Any incomplete bytes ( buffer < 8 bits ) will not be counted */
-  uint32_t Pos() const { return uint32_t(m_pCurrent - m_pData) - (m_bitLen>>3); }
+  unsigned int Pos() const { return unsigned int(m_pCurrent - m_pData) - (m_bitLen>>3); }
   /** Number of bytes remaining in the array */
-  uint32_t Remaining() const { return Length() - Pos(); }
+  unsigned int Remaining() const { return Length() - Pos(); }
+
+  /** Number of bits remaining */
+  unsigned int RemainingBits() const { return m_bitLen + (8 * (m_pEnd - m_pCurrent)); }
 
   /** Flush any bits currently in the buffer */
   void BitFlush() { m_bitLen = 0; m_bitBuffer = 0; }
@@ -69,8 +73,8 @@ private:
   // Pointer to the end in the data buffer
   const BYTE * const m_pEnd;
 
-  const uint32_t m_dwLen;
+  const unsigned int m_dwLen;
 
-  uint64_t m_bitBuffer;
-  uint8_t m_bitLen;
+  unsigned __int64 m_bitBuffer;
+  unsigned int m_bitLen;
 };

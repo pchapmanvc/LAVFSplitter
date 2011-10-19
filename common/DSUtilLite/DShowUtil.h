@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  */
@@ -40,9 +39,16 @@ template <class T> void SafeRelease(T **ppT)
 
 #ifdef _DEBUG
 #define DBG_TIMING(x,l,y) DWORD start = timeGetTime(); y; DWORD end = timeGetTime(); if(end-start>l) DbgLog((LOG_TRACE, 10, L"TIMING: %S took %u ms", x, end-start));
+extern void DbgSetLogFile(LPCTSTR szLogFile);
+extern void DbgSetLogFileDesktop(LPCTSTR szLogFile);
+extern void DbgCloseLogFile();
 #else
 #define DBG_TIMING(x,l,y) y;
+#define DbgSetLogFile(sz)
+#define DbgSetLogFileDesktop(sz)
+#define DbgCloseLogFile()
 #endif
+
 
 // SAFE_ARRAY_DELETE macro.
 // Deletes an array allocated with new [].
@@ -94,5 +100,18 @@ extern std::string ISO6392To6391(LPCSTR code);
 extern HRESULT FilterGraphCleanup(IFilterGraph *pGraph);
 extern IBaseFilter *FindFilter(const GUID& clsid, IFilterGraph *pFG);
 extern BOOL FilterInGraph(const GUID& clsid, IFilterGraph *pFG);
+extern BOOL FilterInGraphWithInputSubtype(const GUID& clsid, IFilterGraph *pFG, const GUID& clsidSubtype);
+extern IBaseFilter* GetFilterFromPin(IPin* pPin);
+extern HRESULT NukeDownstream(IFilterGraph *pGraph, IPin *pPin);
+extern HRESULT NukeDownstream(IFilterGraph *pGraph, IBaseFilter *pFilter);
+extern HRESULT FindIntefaceInGraph(IPin *pPin, REFIID refiid, void **pUnknown);
 
 std::wstring WStringFromGUID(const GUID& guid);
+BSTR ConvertCharToBSTR(const char *sz);
+
+unsigned int lav_xiphlacing(unsigned char *s, unsigned int v);
+
+void videoFormatTypeHandler(const BYTE *format, const GUID *formattype, BITMAPINFOHEADER **pBMI = NULL, REFERENCE_TIME *prtAvgTime = NULL, DWORD *pDwAspectX = NULL, DWORD *pDwAspectY = NULL);
+void audioFormatTypeHandler(const BYTE *format, const GUID *formattype, DWORD *pnSamples, WORD *pnChannels, WORD *pnBitsPerSample, WORD *pnBlockAlign, DWORD *pnBytesPerSec);
+void getExtraData(const CMediaType &mt, BYTE *extra, unsigned int *extralen);
+void getExtraData(const BYTE *format, const GUID *formattype, const size_t formatlen, BYTE *extra, unsigned int *extralen);

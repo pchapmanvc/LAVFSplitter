@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "stdafx.h"
@@ -26,7 +25,6 @@
 #include "SettingsProp.h"
 
 #include "DShowUtil.h"
-#include "version.h"
 
 
 #define LANG_BUFFER_SIZE 256
@@ -84,6 +82,12 @@ HRESULT CLAVSplitterSettingsProp::OnApplyChanges()
   bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_SUBMODE_ONLY_MATCHING, BM_GETCHECK, 0, 0);
   CHECK_HR(hr = m_pLAVF->SetSubtitleMatchingLanguage(bFlag));
 
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0);
+  CHECK_HR(hr = m_pLAVF->SetPGSForcedStream(bFlag));
+
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_GETCHECK, 0, 0);
+  CHECK_HR(hr = m_pLAVF->SetPGSOnlyForced(bFlag));
+
   int vc1flag = (int)SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_GETCHECK, 0, 0);
   CHECK_HR(hr = m_pLAVF->SetVC1TimestampMode(vc1flag));
 
@@ -93,11 +97,11 @@ HRESULT CLAVSplitterSettingsProp::OnApplyChanges()
   bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_VIDEOPARSING, BM_GETCHECK, 0, 0);
   CHECK_HR(hr = m_pLAVF->SetVideoParsingEnabled(bFlag));
 
-  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_AUDIOPARSING, BM_GETCHECK, 0, 0);
-  CHECK_HR(hr = m_pLAVF->SetAudioParsingEnabled(bFlag));
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_FIX_BROKEN_HDPVR, BM_GETCHECK, 0, 0);
+  CHECK_HR(hr = m_pLAVF->SetFixBrokenHDPVR(bFlag));
 
-  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_GENPTS, BM_GETCHECK, 0, 0);
-  CHECK_HR(hr = m_pLAVF->SetGeneratePTS(bFlag));
+  bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_GETCHECK, 0, 0);
+  CHECK_HR(hr = m_pLAVF->SetStreamSwitchRemoveAudio(bFlag));
 
   LoadData();
 
@@ -141,6 +145,12 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
   SendDlgItemMessage(m_Dlg, IDC_SUBMODE_ONLY_MATCHING, BM_SETCHECK, m_subtitleMatching, 0);
   addHint(IDC_SUBMODE_ONLY_MATCHING, L"If set, subtitles will only be enabled if they match one of the languages configured above, otherwise any subtitle will be enabled if no match was found.");
 
+  SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_SETCHECK, m_PGSForcedStream, 0);
+  addHint(IDC_BD_SEPARATE_FORCED_SUBS, L"Enabling this causes the creation of a new \"Forced Subtitles\" stream, which will try to always display forced subtitles matching your selected audio language.\n\nNOTE: This option may not work on all Blu-ray discs.\nRequires restart to take effect.");
+
+  SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_SETCHECK, m_PGSOnlyForced, 0);
+  addHint(IDC_BD_ONLY_FORCED_SUBS, L"When enabled, all Blu-ray (PGS) subtitles will be filtered, and only forced subtitles will be sent to the renderer.\n\nNOTE: When this option is active, you will not be able to get the \"full\" subtitles.");
+
   SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_SETCHECK, m_VC1Mode, 0);
   addHint(IDC_VC1TIMESTAMP, L"Checked - Frame timings will be corrected.\nUnchecked - Frame timings will be sent untouched.\nIndeterminate (Auto) - Only enabled for decoders that rely on the splitter doing the corrections.\n\nNOTE: Only for debugging, if unsure, set to \"Auto\".");
 
@@ -150,11 +160,11 @@ HRESULT CLAVSplitterSettingsProp::OnActivate()
   SendDlgItemMessage(m_Dlg, IDC_VIDEOPARSING, BM_SETCHECK, m_videoParsing, 0);
   addHint(IDC_VIDEOPARSING, L"Enables parsing and repacking of video streams.\n\nNOTE: Only for debugging, if unsure, set to ON.");
 
-  SendDlgItemMessage(m_Dlg, IDC_AUDIOPARSING, BM_SETCHECK, m_audioParsing, 0);
-  addHint(IDC_AUDIOPARSING, L"Enables parsing and repacking of audio streams.\n\nNOTE: Only for debugging, if unsure, set to ON.");
+  SendDlgItemMessage(m_Dlg, IDC_FIX_BROKEN_HDPVR, BM_SETCHECK, m_FixBrokenHDPVR, 0);
+  addHint(IDC_FIX_BROKEN_HDPVR, L"Try to fix errors in recordings of some HD-PVR devices.\n\nIf you notice glitches in MPEG-TS playback, try turning this option off.");
 
-  SendDlgItemMessage(m_Dlg, IDC_GENPTS, BM_SETCHECK, m_generatePTS, 0);
-  addHint(IDC_GENPTS, L"Generate missing frame timestamps.\n\nEXPERIMENTAL & DEBUGGING ONLY - KEEP UNCHECKED\nRequires restart to take affect.");
+  SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_SETCHECK, m_StreamSwitchRemoveAudio, 0);
+  addHint(IDC_STREAM_SWITCH_REMOVE_AUDIO, L"Remove the old Audio Decoder from the Playback Chain before switchign the audio stream, forcing DirectShow to select a new one.\n\nThis option ensures that the preferred decoder is always used, however it does not work properly with all players.");
 
   return hr;
 }
@@ -171,12 +181,14 @@ HRESULT CLAVSplitterSettingsProp::LoadData()
   CHECK_HR(hr = m_pLAVF->GetPreferredSubtitleLanguages(&m_pszPrefSubLang));
   m_subtitleMode = m_pLAVF->GetSubtitleMode();
   m_subtitleMatching = m_pLAVF->GetSubtitleMatchingLanguage();
+  m_PGSForcedStream = m_pLAVF->GetPGSForcedStream();
+  m_PGSOnlyForced = m_pLAVF->GetPGSOnlyForced();
   m_VC1Mode = m_pLAVF->GetVC1TimestampMode();
   m_substreams = m_pLAVF->GetSubstreamsEnabled();
 
   m_videoParsing = m_pLAVF->GetVideoParsingEnabled();
-  m_audioParsing = m_pLAVF->GetAudioParsingEnabled();
-  m_generatePTS = m_pLAVF->GetGeneratePTS();
+  m_FixBrokenHDPVR = m_pLAVF->GetFixBrokenHDPVR();
+  m_StreamSwitchRemoveAudio = m_pLAVF->GetStreamSwitchRemoveAudio();
 
 done:
   return hr;
@@ -222,6 +234,16 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
         if (bFlag != m_subtitleMatching) {
           SetDirty();
         }
+      } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_BD_SEPARATE_FORCED_SUBS) {
+        BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_SEPARATE_FORCED_SUBS, BM_GETCHECK, 0, 0);
+        if (bFlag != m_PGSForcedStream) {
+          SetDirty();
+        }
+      } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_BD_ONLY_FORCED_SUBS) {
+        BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_BD_ONLY_FORCED_SUBS, BM_GETCHECK, 0, 0);
+        if (bFlag != m_PGSOnlyForced) {
+          SetDirty();
+        }
       } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_VC1TIMESTAMP) {
         int iFlag = (int)SendDlgItemMessage(m_Dlg, IDC_VC1TIMESTAMP, BM_GETCHECK, 0, 0);
         if (iFlag != m_VC1Mode) {
@@ -237,14 +259,14 @@ INT_PTR CLAVSplitterSettingsProp::OnReceiveMessage(HWND hwnd, UINT uMsg, WPARAM 
         if (bFlag != m_videoParsing) {
           SetDirty();
         }
-      } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_AUDIOPARSING) {
-        BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_AUDIOPARSING, BM_GETCHECK, 0, 0);
-        if (bFlag != m_audioParsing) {
+       } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_FIX_BROKEN_HDPVR) {
+        BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_FIX_BROKEN_HDPVR, BM_GETCHECK, 0, 0);
+        if (bFlag != m_FixBrokenHDPVR) {
           SetDirty();
         }
-      } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_GENPTS) {
-        BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_GENPTS, BM_GETCHECK, 0, 0);
-        if (bFlag != m_generatePTS) {
+      } else if (HIWORD(wParam) == BN_CLICKED && LOWORD(wParam) == IDC_STREAM_SWITCH_REMOVE_AUDIO) {
+        BOOL bFlag = (BOOL)SendDlgItemMessage(m_Dlg, IDC_STREAM_SWITCH_REMOVE_AUDIO, BM_GETCHECK, 0, 0);
+        if (bFlag != m_StreamSwitchRemoveAudio) {
           SetDirty();
         }
       }
@@ -296,7 +318,6 @@ HRESULT CLAVSplitterFormatsProp::OnApplyChanges()
     nItem++;
   }
 
-  hr = m_pLAVF->SaveSettings();
   return hr;
 }
 

@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 // Based on the SampleParser Template by GDCL
@@ -36,6 +35,7 @@
 #include "moreuuids.h"
 
 #include "registry.h"
+#include "IGraphRebuildDelegate.h"
 
 // The GUID we use to register the splitter media types
 DEFINE_GUID(MEDIATYPE_LAVSplitter,
@@ -143,7 +143,7 @@ STDAPI DllRegisterServer()
   RegisterSourceFilter(__uuidof(CLAVSplitterSource),
     MEDIASUBTYPE_LAVLxf,
     chkbytes,
-    L".lxf");
+    L".lxf", NULL);
 
   chkbytes.clear();
 
@@ -151,13 +151,13 @@ STDAPI DllRegisterServer()
   RegisterSourceFilter(__uuidof(CLAVSplitterSource),
     MEDIASUBTYPE_LAVGxf,
     L"0,6,,0000000001bc,14,2,,e1e2",
-    L".gxf");
+    L".gxf", NULL);
 
   // MKV/WEBM
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_Matroska,
     L"0,4,,1A45DFA3",
-    L".mkv", L".mka", L".mks", L".webm");
+    L".mkv", L".mka", L".mks", L".webm", NULL);
 
   // AVI
   chkbytes.push_back(L"0,4,,52494646,8,4,,41564920"); // 'RIFF' ... 'AVI '
@@ -166,7 +166,7 @@ STDAPI DllRegisterServer()
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_Avi,
     chkbytes,
-    L".avi", L".divx", L".vp6", L".amv");
+    L".avi", L".divx", L".vp6", L".amv", NULL);
 
   chkbytes.clear();
 
@@ -186,7 +186,7 @@ STDAPI DllRegisterServer()
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_MP4,
     chkbytes,
-    L".mp4", L".mov", L".3gp");
+    L".mp4", L".mov", L".3gp", NULL);
 
   chkbytes.clear();
 
@@ -205,25 +205,25 @@ STDAPI DllRegisterServer()
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_MPEG2_TRANSPORT,
     chkbytes,
-    L".ts", L".mts", L".m2ts");
+    L".ts", L".mts", L".m2ts", NULL);
 
   // MPEG-PS
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_MPEG2_PROGRAM,
     L"0,5,FFFFFFFFC0,000001BA40",
-    L".mpeg", L".mpg", L".vob", L".evo");
+    L".mpeg", L".mpg", L".vob", L".evo", NULL);
 
   // FLV
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_FLV,
     L"0,4,,464C5601",
-    L".flv");
+    L".flv", NULL);
 
   // Ogg
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_Ogg,
     L"0,4,,4F676753",
-    L".ogg", L".ogm");
+    L".ogg", L".ogm", NULL);
 
   // BluRay
   chkbytes.clear();
@@ -233,7 +233,7 @@ STDAPI DllRegisterServer()
   RegisterSourceFilter(__uuidof(CLAVSplitterSource),
     MEDIASUBTYPE_LAVBluRay,
     chkbytes,
-    L".bdmv", L".mpls");
+    L".bdmv", L".mpls", NULL);
 
   // base classes will handle registration using the factory template table
   return AMovieDllRegisterServer2(true);
@@ -268,4 +268,19 @@ extern "C" BOOL WINAPI DllEntryPoint(HINSTANCE, ULONG, LPVOID);
 BOOL WINAPI DllMain(HANDLE hDllHandle, DWORD dwReason, LPVOID lpReserved)
 {
   return DllEntryPoint(reinterpret_cast<HINSTANCE>(hDllHandle), dwReason, lpReserved);
+}
+
+STDAPI OpenConfiguration()
+{
+  HRESULT hr = S_OK;
+  CUnknown *pInstance = CreateInstance<CLAVSplitter>(NULL, &hr);
+  IBaseFilter *pFilter = NULL;
+  pInstance->NonDelegatingQueryInterface(IID_IBaseFilter, (void **)&pFilter);
+  if (pFilter) {
+    pFilter->AddRef();
+    CBaseDSPropPage::ShowPropPageDialog(pFilter);
+  }
+  delete pInstance;
+
+  return 0;
 }

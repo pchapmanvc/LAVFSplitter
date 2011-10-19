@@ -2,20 +2,19 @@
  *      Copyright (C) 2011 Hendrik Leppkes
  *      http://www.1f0.de
  *
- *  This Program is free software; you can redistribute it and/or modify
+ *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
  *
- *  This Program is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *  http://www.gnu.org/copyleft/gpl.html
+ *  You should have received a copy of the GNU General Public License along
+ *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  *  Initial design and concept by Gabest and the MPC-HC Team, copyright under GPLv2
  *  Contributions by Ti-BEN from the XBMC DSPlayer Project, also under GPLv2
@@ -32,8 +31,11 @@
 
 #include <Shlwapi.h>
 #include <string>
+#include <algorithm>
 
 #include "registry.h"
+
+#include "IGraphRebuildDelegate.h"
 
 CLAVSplitter::CLAVSplitter(LPUNKNOWN pUnk, HRESULT* phr) 
   : CBaseFilter(NAME("lavf dshow source filter"), pUnk, this,  __uuidof(this), phr)
@@ -45,6 +47,9 @@ CLAVSplitter::CLAVSplitter(LPUNKNOWN pUnk, HRESULT* phr)
   , m_rtCurrent(0)
   , m_bPlaybackStarted(FALSE)
   , m_pDemuxer(NULL)
+  , m_bRuntimeConfig(FALSE)
+  , m_pSite(NULL)
+  , m_bFakeASFReader(FALSE)
 {
   CLAVFDemuxer::ffmpeg_init();
 
@@ -60,6 +65,10 @@ CLAVSplitter::CLAVSplitter(LPUNKNOWN pUnk, HRESULT* phr)
 #ifdef DEBUG
   DbgSetModuleLevel (LOG_TRACE, DWORD_MAX);
   DbgSetModuleLevel (LOG_ERROR, DWORD_MAX);
+
+#if ENABLE_DEBUG_LOGFILE
+  DbgSetLogFileDesktop(LAVF_LOG_FILE);
+#endif
 #endif
 }
 
@@ -74,6 +83,12 @@ CLAVSplitter::~CLAVSplitter()
     delete (*it);
   }
   m_pRetiredPins.clear();
+
+  SafeRelease(&m_pSite);
+
+#if defined(DEBUG) && ENABLE_DEBUG_LOGFILE
+  DbgCloseLogFile();
+#endif
 }
 
 STDMETHODIMP CLAVSplitter::Close()
@@ -102,8 +117,37 @@ static BOOL get_iformat_default(std::string name)
   return TRUE;
 }
 
+STDMETHODIMP CLAVSplitter::LoadDefaults()
+{
+  m_settings.prefAudioLangs = L"";
+  m_settings.prefSubLangs   = L"";
+
+  m_settings.subtitleMode     = SUBMODE_ALWAYS_SUBS;
+  m_settings.subtitleMatching = TRUE;
+  m_settings.PGSForcedStream  = TRUE;
+  m_settings.PGSOnlyForced    = FALSE;
+
+  m_settings.vc1Mode          = 2;
+  m_settings.substreams       = TRUE;
+  m_settings.videoParsing     = TRUE;
+  m_settings.FixBrokenHDPVR   = TRUE;
+
+  m_settings.StreamSwitchRemoveAudio = FALSE;
+
+  std::set<FormatInfo>::iterator it;
+  for (it = m_InputFormats.begin(); it != m_InputFormats.end(); ++it) {
+    m_settings.formats[std::string(it->strName)] = get_iformat_default(it->strName);
+  }
+
+  return S_OK;
+}
+
 STDMETHODIMP CLAVSplitter::LoadSettings()
 {
+  LoadDefaults();
+  if (m_bRuntimeConfig)
+    return S_FALSE;
+
   HRESULT hr;
   DWORD dwVal;
   BOOL bFlag;
@@ -120,25 +164,31 @@ STDMETHODIMP CLAVSplitter::LoadSettings()
 
   // Subtitle mode, defaults to all subtitles
   dwVal = reg.ReadDWORD(L"subtitleMode", hr);
-  m_settings.subtitleMode = SUCCEEDED(hr) ? dwVal : SUBMODE_ALWAYS_SUBS;
+  if (SUCCEEDED(hr)) m_settings.subtitleMode = dwVal;
 
   bFlag = reg.ReadDWORD(L"subtitleMatching", hr);
-  m_settings.subtitleMatching = SUCCEEDED(hr) ? bFlag : TRUE;
+  if (SUCCEEDED(hr)) m_settings.subtitleMatching = bFlag;
+
+  bFlag = reg.ReadBOOL(L"PGSForcedStream", hr);
+  if (SUCCEEDED(hr)) m_settings.PGSForcedStream = bFlag;
+
+  bFlag = reg.ReadBOOL(L"PGSOnlyForced", hr);
+  if (SUCCEEDED(hr)) m_settings.PGSOnlyForced = bFlag;
 
   dwVal = reg.ReadDWORD(L"vc1TimestampMode", hr);
-  m_settings.vc1Mode = SUCCEEDED(hr) ? dwVal : 2;
+  if (SUCCEEDED(hr)) m_settings.vc1Mode = dwVal;
 
   bFlag = reg.ReadDWORD(L"substreams", hr);
-  m_settings.substreams = SUCCEEDED(hr) ? bFlag : TRUE;
+  if (SUCCEEDED(hr)) m_settings.substreams = bFlag;
 
   bFlag = reg.ReadDWORD(L"videoParsing", hr);
-  m_settings.videoParsing = SUCCEEDED(hr) ? bFlag : TRUE;
+  if (SUCCEEDED(hr)) m_settings.videoParsing = bFlag;
 
-  bFlag = reg.ReadDWORD(L"audioParsing", hr);
-  m_settings.audioParsing = SUCCEEDED(hr) ? bFlag : TRUE;
+  bFlag = reg.ReadDWORD(L"FixBrokenHDPVR", hr);
+  if (SUCCEEDED(hr)) m_settings.FixBrokenHDPVR = bFlag;
 
-  bFlag = reg.ReadDWORD(L"generatePTS", hr);
-  m_settings.generatePTS = SUCCEEDED(hr) ? bFlag : FALSE;
+  bFlag = reg.ReadDWORD(L"StreamSwitchRemoveAudio", hr);
+  if (SUCCEEDED(hr)) m_settings.StreamSwitchRemoveAudio = bFlag;
 
   CreateRegistryKey(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY_FORMATS);
   CRegistry regF = CRegistry(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY_FORMATS, hr);
@@ -148,7 +198,7 @@ STDMETHODIMP CLAVSplitter::LoadSettings()
   for (it = m_InputFormats.begin(); it != m_InputFormats.end(); ++it) {
     MultiByteToWideChar(CP_UTF8, 0, it->strName, -1, wBuffer, 80);
     bFlag = regF.ReadBOOL(wBuffer, hr);
-    m_settings.formats[std::string(it->strName)] = SUCCEEDED(hr) ? bFlag : get_iformat_default(it->strName);
+    if (SUCCEEDED(hr)) m_settings.formats[std::string(it->strName)] = bFlag;
   }
 
   return S_OK;
@@ -156,6 +206,12 @@ STDMETHODIMP CLAVSplitter::LoadSettings()
 
 STDMETHODIMP CLAVSplitter::SaveSettings()
 {
+  if (m_bRuntimeConfig) {
+    if (m_pDemuxer)
+      m_pDemuxer->SettingsChanged(static_cast<ILAVFSettingsInternal *>(this));
+    return S_FALSE;
+  }
+
   HRESULT hr;
   CRegistry reg = CRegistry(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY, hr);
   if (SUCCEEDED(hr)) {
@@ -163,11 +219,13 @@ STDMETHODIMP CLAVSplitter::SaveSettings()
     reg.WriteString(L"prefSubLangs", m_settings.prefSubLangs.c_str());
     reg.WriteDWORD(L"subtitleMode", m_settings.subtitleMode);
     reg.WriteBOOL(L"subtitleMatching", m_settings.subtitleMatching);
+    reg.WriteBOOL(L"PGSForcedStream", m_settings.PGSForcedStream);
+    reg.WriteBOOL(L"PGSOnlyForced", m_settings.PGSOnlyForced);
     reg.WriteDWORD(L"vc1TimestampMode", m_settings.vc1Mode);
     reg.WriteBOOL(L"substreams", m_settings.substreams);
     reg.WriteBOOL(L"videoParsing", m_settings.videoParsing);
-    reg.WriteBOOL(L"audioParsing", m_settings.audioParsing);
-    reg.WriteBOOL(L"generatePTS", m_settings.generatePTS);
+    reg.WriteBOOL(L"FixBrokenHDPVR", m_settings.FixBrokenHDPVR);
+    reg.WriteBOOL(L"StreamSwitchRemoveAudio", m_settings.StreamSwitchRemoveAudio);
   }
 
   CRegistry regF = CRegistry(HKEY_CURRENT_USER, LAVF_REGISTRY_KEY_FORMATS, hr);
@@ -181,7 +239,7 @@ STDMETHODIMP CLAVSplitter::SaveSettings()
   }
 
   if (m_pDemuxer) {
-    m_pDemuxer->SettingsChanged(static_cast<ILAVFSettings *>(this));
+    m_pDemuxer->SettingsChanged(static_cast<ILAVFSettingsInternal *>(this));
   }
   return S_OK;
 }
@@ -192,7 +250,7 @@ STDMETHODIMP CLAVSplitter::NonDelegatingQueryInterface(REFIID riid, void** ppv)
 
   *ppv = NULL;
 
-  if (m_pDemuxer && (riid == __uuidof(IKeyFrameInfo) || riid == IID_IAMExtendedSeeking)) {
+  if (m_pDemuxer && (riid == __uuidof(IKeyFrameInfo) || riid == __uuidof(ITrackInfo) || riid == IID_IAMExtendedSeeking)) {
     return m_pDemuxer->QueryInterface(riid, ppv);
   }
 
@@ -201,6 +259,8 @@ STDMETHODIMP CLAVSplitter::NonDelegatingQueryInterface(REFIID riid, void** ppv)
     QI(IAMStreamSelect)
     QI2(ISpecifyPropertyPages)
     QI2(ILAVFSettings)
+    QI2(ILAVFSettingsInternal)
+    QI(IObjectWithSite)
     __super::NonDelegatingQueryInterface(riid, ppv);
 }
 
@@ -216,6 +276,39 @@ STDMETHODIMP CLAVSplitter::GetPages(CAUUID *pPages)
   pPages->pElems[0] = CLSID_LAVSplitterSettingsProp;
   pPages->pElems[1] = CLSID_LAVSplitterFormatsProp;
   return S_OK;
+}
+
+// IObjectWithSite
+STDMETHODIMP CLAVSplitter::SetSite(IUnknown *pUnkSite)
+{
+  // AddRef to store it for later
+  pUnkSite->AddRef();
+
+  // Release the old one
+  SafeRelease(&m_pSite);
+
+  // Store the new one
+  m_pSite = pUnkSite;
+
+  return S_OK;
+}
+
+STDMETHODIMP CLAVSplitter::GetSite(REFIID riid, void **ppvSite)
+{
+  CheckPointer(ppvSite, E_POINTER);
+  *ppvSite = NULL;
+  if (!m_pSite) {
+    return E_FAIL;
+  }
+
+  IUnknown *pSite = NULL;
+  HRESULT hr = m_pSite->QueryInterface(riid, (void **)&pSite);
+  if (SUCCEEDED(hr) && pSite) {
+    pSite->AddRef();
+    *ppvSite = pSite;
+    return S_OK;
+  }
+  return E_NOINTERFACE;
 }
 
 // CBaseSplitter
@@ -246,12 +339,26 @@ CBasePin *CLAVSplitter::GetPin(int n)
   return m_pPins[n];
 }
 
-CLAVOutputPin *CLAVSplitter::GetOutputPin(DWORD streamId)
+STDMETHODIMP CLAVSplitter::GetClassID(CLSID* pClsID)
+{
+  CheckPointer (pClsID, E_POINTER);
+
+  if (m_bFakeASFReader) {
+    *pClsID = CLSID_WMAsfReader;
+    return S_OK;
+  } else {
+    return __super::GetClassID(pClsID);
+  }
+}
+
+CLAVOutputPin *CLAVSplitter::GetOutputPin(DWORD streamId, BOOL bActiveOnly)
 {
   CAutoLock lock(&m_csPins);
 
+  std::vector<CLAVOutputPin *> &vec = bActiveOnly ? m_pActivePins : m_pPins;
+
   std::vector<CLAVOutputPin *>::iterator it;
-  for(it = m_pPins.begin(); it != m_pPins.end(); ++it) {
+  for(it = vec.begin(); it != vec.end(); ++it) {
     if ((*it)->GetStreamId() == streamId) {
       return *it;
     }
@@ -272,7 +379,20 @@ STDMETHODIMP CLAVSplitter::CompleteInputConnection()
     return hr;
   }
 
-  if(FAILED(hr = pDemux->OpenInputStream(pContext))) {
+  LPOLESTR pszFileName = NULL;
+
+  PIN_INFO info;
+  hr = m_pInput->GetConnected()->QueryPinInfo(&info);
+  if (SUCCEEDED(hr) && info.pFilter) {
+    IFileSourceFilter *pSource = NULL;
+    if (SUCCEEDED(info.pFilter->QueryInterface(&pSource)) && pSource) {
+      pSource->GetCurFile(&pszFileName, NULL);
+      SafeRelease(&pSource);
+    }
+    SafeRelease(&info.pFilter);
+  }
+
+  if(FAILED(hr = pDemux->OpenInputStream(pContext, pszFileName))) {
     SAFE_DELETE(pDemux);
     return hr;
   }
@@ -408,7 +528,7 @@ bool CLAVSplitter::IsAnyPinDrying()
   // MPC changes thread priority here
   // TODO: Investigate if that is needed
   std::vector<CLAVOutputPin *>::iterator it;
-  for(it = m_pPins.begin(); it != m_pPins.end(); ++it) {
+  for(it = m_pActivePins.begin(); it != m_pActivePins.end(); ++it) {
     if((*it)->IsConnected() && !(*it)->IsDiscontinuous() && (*it)->QueueCount() < MIN_PACKETS_IN_QUEUE) {
       return true;
     }
@@ -419,6 +539,8 @@ bool CLAVSplitter::IsAnyPinDrying()
 // Worker Thread
 DWORD CLAVSplitter::ThreadProc()
 {
+  std::vector<CLAVOutputPin *>::iterator pinIter;
+
   CheckPointer(m_pDemuxer, 0);
 
   SetThreadName(-1, "CLAVSplitter Demux");
@@ -448,10 +570,12 @@ DWORD CLAVSplitter::ThreadProc()
     // Wait for the end of any flush
     m_eEndFlush.Wait();
 
-    std::vector<CLAVOutputPin *>::iterator it;
-    for(it = m_pPins.begin(); it != m_pPins.end() && !m_fFlushing; ++it) {
-      if ((*it)->IsConnected()) {
-        (*it)->DeliverNewSegment(m_rtStart, m_rtStop, m_dRate);
+    m_pActivePins.clear();
+
+    for(pinIter = m_pPins.begin(); pinIter != m_pPins.end() && !m_fFlushing; ++pinIter) {
+      if ((*pinIter)->IsConnected()) {
+        (*pinIter)->DeliverNewSegment(m_rtStart, m_rtStop, m_dRate);
+        m_pActivePins.push_back(*pinIter);
       }
     }
 
@@ -466,9 +590,8 @@ DWORD CLAVSplitter::ThreadProc()
 
     // If we didnt exit by request, deliver end-of-stream
     if(!CheckRequest(&cmd)) {
-      std::vector<CLAVOutputPin *>::iterator it;
-      for(it = m_pPins.begin(); it != m_pPins.end(); ++it) {
-        (*it)->QueueEndOfStream();
+      for(pinIter = m_pActivePins.begin(); pinIter != m_pActivePins.end(); ++pinIter) {
+        (*pinIter)->QueueEndOfStream();
       }
     }
 
@@ -507,7 +630,10 @@ HRESULT CLAVSplitter::DeliverPacket(Packet *pPacket)
 {
   HRESULT hr = S_FALSE;
 
-  CLAVOutputPin* pPin = GetOutputPin(pPacket->StreamId);
+  if (pPacket->dwFlags & LAV_PACKET_FORCED_SUBTITLE)
+    pPacket->StreamId = FORCED_SUBTITLE_PID;
+
+  CLAVOutputPin* pPin = GetOutputPin(pPacket->StreamId, TRUE);
   if(!pPin || !pPin->IsConnected()) {
     delete pPacket;
     return S_FALSE;
@@ -531,7 +657,15 @@ HRESULT CLAVSplitter::DeliverPacket(Packet *pPacket)
 
   hr = pPin->QueuePacket(pPacket);
 
-  // TODO track active pins
+  if (hr != S_OK) {
+    // Find a iterator pointing to the pin
+    std::vector<CLAVOutputPin *>::iterator it = std::find(m_pActivePins.begin(), m_pActivePins.end(), pPin);
+    // Remove it from the vector
+    m_pActivePins.erase(it);
+
+    // Fail if no active pins remain, otherwise resume demuxing
+    return m_pActivePins.empty() ? E_FAIL : S_OK;
+  }
 
   if(bDiscontinuity) {
     m_bDiscontinuitySent.insert(streamId);
@@ -574,7 +708,7 @@ STDMETHODIMP CLAVSplitter::Pause()
   // and even in pause mode fill up the buffers
   if(fs == State_Stopped) {
     // At this point, the graph is hopefully finished, tell the demuxer about all the cool things
-    m_pDemuxer->SettingsChanged(static_cast<ILAVFSettings *>(this));
+    m_pDemuxer->SettingsChanged(static_cast<ILAVFSettingsInternal *>(this));
 
     // Create demuxing thread
     Create();
@@ -671,7 +805,7 @@ STDMETHODIMP CLAVSplitter::SetPositions(LONGLONG* pCurrent, DWORD dwCurrentFlags
 }
 STDMETHODIMP CLAVSplitter::SetPositionsInternal(void *caller, LONGLONG* pCurrent, DWORD dwCurrentFlags, LONGLONG* pStop, DWORD dwStopFlags)
 {
-  DbgLog((LOG_TRACE, 20, "::SetPositions() - seek request; current: %I64d; start: %I64d; stop: %I64d; flags: %ul", m_rtCurrent, pCurrent ? *pCurrent : -1, pStop ? *pStop : -1, dwStopFlags));
+  DbgLog((LOG_TRACE, 20, "::SetPositions() - seek request; caller: %p, current: %I64d; start: %I64d; flags: 0x%x, stop: %I64d; flags: 0x%x", caller, m_rtCurrent, pCurrent ? *pCurrent : -1, dwCurrentFlags, pStop ? *pStop : -1, dwStopFlags));
   CAutoLock cAutoLock(this);
 
   if(!pCurrent && !pStop
@@ -721,12 +855,14 @@ STDMETHODIMP CLAVSplitter::SetPositionsInternal(void *caller, LONGLONG* pCurrent
   m_rtNewStart = m_rtCurrent = rtCurrent;
   m_rtNewStop = rtStop;
 
+  DbgLog((LOG_TRACE, 20, " -> Performing seek to %I64d", m_rtNewStart));
   if(ThreadExists())
   {
     DeliverBeginFlush();
     CallWorker(CMD_SEEK);
     DeliverEndFlush();
   }
+  DbgLog((LOG_TRACE, 20, " -> Seek finished", m_rtNewStart));
 
   return S_OK;
 }
@@ -744,6 +880,32 @@ STDMETHODIMP CLAVSplitter::GetAvailable(LONGLONG* pEarliest, LONGLONG* pLatest)
 STDMETHODIMP CLAVSplitter::SetRate(double dRate) {return dRate > 0 ? m_dRate = dRate, S_OK : E_INVALIDARG;}
 STDMETHODIMP CLAVSplitter::GetRate(double* pdRate) {return pdRate ? *pdRate = m_dRate, S_OK : E_POINTER;}
 STDMETHODIMP CLAVSplitter::GetPreroll(LONGLONG* pllPreroll) {return pllPreroll ? *pllPreroll = 0, S_OK : E_POINTER;}
+
+STDMETHODIMP CLAVSplitter::UpdateForcedSubtitleMediaType()
+{
+  CheckPointer(m_pDemuxer, E_UNEXPECTED);
+
+  CLAVOutputPin* pPin = GetOutputPin(FORCED_SUBTITLE_PID);
+  if (pPin) {
+    const CBaseDemuxer::CStreamList *streams = m_pDemuxer->GetStreams(CBaseDemuxer::subpic);
+    const CBaseDemuxer::stream *s = streams->FindStream(FORCED_SUBTITLE_PID);
+    CMediaType *mt = new CMediaType(s->streamInfo->mtypes.back());
+    pPin->SendMediaType(mt);
+  }
+
+  return S_OK;
+}
+
+static int QueryAcceptMediaTypes(IPin *pPin, std::vector<CMediaType> pmts)
+{
+  for(unsigned int i = 0; i < pmts.size(); i++) {
+    if (S_OK == pPin->QueryAccept(&pmts[i])) {
+      DbgLog((LOG_TRACE, 20, L"QueryAcceptMediaTypes() - IPin:QueryAccept succeeded on index %d", i));
+      return i;
+    }
+  }
+  return -1;
+}
 
 STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst, std::vector<CMediaType> pmts)
 {
@@ -782,58 +944,87 @@ STDMETHODIMP CLAVSplitter::RenameOutputPin(DWORD TrackNumSrc, DWORD TrackNumDst,
     m_pDemuxer->SetActiveStream(pPin->GetPinType(), TrackNumDst);
     pPin->SetNewMediaTypes(pmts);
 
+    // IGraphRebuildDelegate support
+    // Query our Site for the appropriate interface, and if its present, delegate graph building there
+    IGraphRebuildDelegate *pDelegate = NULL;
+    if (SUCCEEDED(GetSite(IID_IGraphRebuildDelegate, (void **)&pDelegate)) && pDelegate) {
+      hr = pDelegate->RebuildPin(m_pGraph, pPin);
+      if (hr == S_FALSE) {
+        int mtIdx = QueryAcceptMediaTypes(pPin->GetConnected(), pmts);
+        if (mtIdx == -1) {
+          DbgLog((LOG_ERROR, 10, L"::RenameOutputPin(): No matching media type after rebuild delegation"));
+          mtIdx = 0;
+        }
+        CMediaType *mt = new CMediaType(pmts[mtIdx]);
+        pPin->SendMediaType(mt);
+      }
+      SafeRelease(&pDelegate);
+
+      if (SUCCEEDED(hr)) {
+        goto resumegraph;
+      }
+      DbgLog((LOG_TRACE, 10, L"::RenameOutputPin(): IGraphRebuildDelegate::RebuildPin failed"));
+    }
+
     // Audio Filters get their connected filter removed
     // This way we make sure we reconnect to the proper filter
     // Other filters just disconnect and try to reconnect later on
     PIN_INFO pInfo;
     hr = pPin->GetConnected()->QueryPinInfo(&pInfo);
-
-    if(pPin->IsAudioPin() && SUCCEEDED(hr) && pInfo.pFilter) {
-      hr = m_pGraph->RemoveFilter(pInfo.pFilter);
-#ifdef DEBUG
-      CLSID guidFilter;
-      pInfo.pFilter->GetClassID(&guidFilter);
-      DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IFilterGraph::RemoveFilter - %s (hr %x)", WStringFromGUID(guidFilter).c_str(), hr));
-#endif
-      // Use IGraphBuilder to rebuild the graph
-      IGraphBuilder *pGraphBuilder = NULL;
-      if(SUCCEEDED(hr = m_pGraph->QueryInterface(__uuidof(IGraphBuilder), (void **)&pGraphBuilder))) {
-        // Instruct the GraphBuilder to connect us again
-        hr = pGraphBuilder->Render(pPin);
-        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IGraphBuilder::Render (hr %x)", hr));
-        pGraphBuilder->Release();
-      }
-    } else {
-      unsigned int index = 0;
-      for(unsigned int i = 0; i < pmts.size(); i++) {
-        if (SUCCEEDED(hr = pPin->GetConnected()->QueryAccept(&pmts[i]))) {
-          DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IPin:QueryAccept succeeded (hr %x)", hr));
-          index = i;
-          break;
-        }
-      }
-      if (SUCCEEDED(hr) && !pPin->IsVideoPin()) {
-        hr = ReconnectPin(pPin, &pmts[index]);
-        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - ReconnectPin (hr %x)", hr));
-      } else if (SUCCEEDED(hr)) {
-        CMediaType *mt = new CMediaType(pmts[index]);
-        pPin->SendMediaType(mt);
-        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - Sending new Media Type"));
-      }
+    if (FAILED(hr)) {
+      DbgLog((LOG_ERROR, 10, L"::RenameOutputPin(): QueryPinInfo failed (hr %x)", hr));
     }
-    if(pInfo.pFilter) { pInfo.pFilter->Release(); }
 
+    int mtIdx = QueryAcceptMediaTypes(pPin->GetConnected(), pmts);
+    BOOL bMediaTypeFound = (mtIdx >= 0);
+
+    if (!bMediaTypeFound) {
+      DbgLog((LOG_TRACE, 10, L"::RenameOutputPin() - Filter does not accept our media types!"));
+      mtIdx = 0; // Fallback type
+    }
+    CMediaType *pmt = &pmts[mtIdx];
+
+    if(!pPin->IsVideoPin() && SUCCEEDED(hr) && pInfo.pFilter) {
+      BOOL bRemoveFilter = m_settings.StreamSwitchRemoveAudio || !bMediaTypeFound;
+      if (bRemoveFilter && pPin->IsAudioPin()) {
+        hr = m_pGraph->RemoveFilter(pInfo.pFilter);
+  #ifdef DEBUG
+        CLSID guidFilter;
+        pInfo.pFilter->GetClassID(&guidFilter);
+        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IFilterGraph::RemoveFilter - %s (hr %x)", WStringFromGUID(guidFilter).c_str(), hr));
+  #endif
+        // Use IGraphBuilder to rebuild the graph
+        IGraphBuilder *pGraphBuilder = NULL;
+        if(SUCCEEDED(hr = m_pGraph->QueryInterface(__uuidof(IGraphBuilder), (void **)&pGraphBuilder))) {
+          // Instruct the GraphBuilder to connect us again
+          hr = pGraphBuilder->Render(pPin);
+          DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IGraphBuilder::Render (hr %x)", hr));
+          pGraphBuilder->Release();
+        }
+      } else {
+        hr = ReconnectPin(pPin, pmt);
+        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - ReconnectPin (hr %x)", hr));
+      }
+
+      if (pPin->IsAudioPin() && m_settings.PGSForcedStream)
+        UpdateForcedSubtitleMediaType();
+    } else {
+      CMediaType *mt = new CMediaType(*pmt);
+      pPin->SendMediaType(mt);
+      DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - Sending new Media Type"));
+    }
+    if(SUCCEEDED(hr) && pInfo.pFilter) { pInfo.pFilter->Release(); }
+
+resumegraph:
     Unlock();
 
-    if (SUCCEEDED(hr)) {
-      // Re-start the graph
-      if(oldState == State_Paused) {
-        hr = pControl->Pause();
-        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IMediaControl::Pause (hr %x)", hr));
-      } else if (oldState == State_Running) {
-        hr = pControl->Run();
-        DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IMediaControl::Run (hr %x)", hr));
-      }
+    // Re-start the graph
+    if(oldState == State_Paused) {
+      hr = pControl->Pause();
+      DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IMediaControl::Pause (hr %x)", hr));
+    } else if (oldState == State_Running) {
+      hr = pControl->Run();
+      DbgLog((LOG_TRACE, 20, L"::RenameOutputPin() - IMediaControl::Run (hr %x)", hr));
     }
     pControl->Release();
 
@@ -904,6 +1095,7 @@ STDMETHODIMP CLAVSplitter::Enable(long lIndex, DWORD dwFlags)
 STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFlags, LCID *plcid, DWORD *pdwGroup, WCHAR **ppszName, IUnknown **ppObject, IUnknown **ppUnk)
 {
   CheckPointer(m_pDemuxer, E_UNEXPECTED);
+  HRESULT hr = S_FALSE;
   for(int i = 0, j = 0; i < CBaseDemuxer::unknown; i++) {
     CBaseDemuxer::CStreamList *streams = m_pDemuxer->GetStreams((CBaseDemuxer::StreamType)i);
     int cnt = (int)streams->size();
@@ -928,16 +1120,28 @@ STDMETHODIMP CLAVSplitter::Info(long lIndex, AM_MEDIA_TYPE **ppmt, DWORD *pdwFla
           *ppszName = (WCHAR*)CoTaskMemAlloc(len * sizeof(WCHAR));
           wcsncpy_s(*ppszName, len, str, _TRUNCATE);
         }
+      } else if (s.pid == FORCED_SUBTITLE_PID) {
+        if (plcid) {
+          SUBTITLEINFO *subinfo = (SUBTITLEINFO *)s.streamInfo->mtypes[0].Format();
+          *plcid = ProbeLangForLCID(subinfo->IsoLang);
+        }
+        if (ppszName) {
+          WCHAR str[] = L"S: " FORCED_SUB_STRING;
+          size_t len = wcslen(str) + 1;
+          *ppszName = (WCHAR*)CoTaskMemAlloc(len * sizeof(WCHAR));
+          wcsncpy_s(*ppszName, len, str, _TRUNCATE);
+        }
       } else {
         // Populate stream name and language code
         m_pDemuxer->StreamInfo(s.pid, plcid, ppszName);
       }
+      hr = S_OK;
       break;
     }
     j += cnt;
   }
 
-  return S_OK;
+  return hr;
 }
 
 // setting helpers
@@ -970,6 +1174,16 @@ std::list<std::string> CLAVSplitter::GetPreferredSubtitleLanguageList()
 }
 
 // Settings
+// ILAVAudioSettings
+HRESULT CLAVSplitter::SetRuntimeConfig(BOOL bRuntimeConfig)
+{
+  m_bRuntimeConfig = bRuntimeConfig;
+  LoadSettings();
+
+  return S_OK;
+}
+
+
 STDMETHODIMP CLAVSplitter::GetPreferredLanguages(WCHAR **ppLanguages)
 {
   CheckPointer(ppLanguages, E_POINTER);
@@ -1030,6 +1244,28 @@ STDMETHODIMP CLAVSplitter::SetSubtitleMatchingLanguage(BOOL dwMode)
   return SaveSettings();
 }
 
+STDMETHODIMP_(BOOL) CLAVSplitter::GetPGSForcedStream()
+{
+  return m_settings.PGSForcedStream;
+}
+
+STDMETHODIMP CLAVSplitter::SetPGSForcedStream(BOOL bFlag)
+{
+  m_settings.PGSForcedStream = bFlag;
+  return SaveSettings();
+}
+
+STDMETHODIMP_(BOOL) CLAVSplitter::GetPGSOnlyForced()
+{
+  return m_settings.PGSOnlyForced;
+}
+
+STDMETHODIMP CLAVSplitter::SetPGSOnlyForced(BOOL bForced)
+{
+  m_settings.PGSOnlyForced = bForced;
+  return SaveSettings();
+}
+
 STDMETHODIMP_(int) CLAVSplitter::GetVC1TimestampMode()
 {
   return m_settings.vc1Mode;
@@ -1043,7 +1279,13 @@ STDMETHODIMP CLAVSplitter::SetVC1TimestampMode(int iMode)
 
 STDMETHODIMP_(BOOL) CLAVSplitter::IsVC1CorrectionRequired()
 {
-  return FilterInGraph(CLSID_MPCVideoDec, m_pGraph) || FilterInGraph(CLSID_DMOWrapperFilter, m_pGraph);
+  return
+      FilterInGraph(CLSID_LAVVideo, m_pGraph)
+   || (FilterInGraph(CLSID_LAVCUVID, m_pGraph) && (_strnicmp(m_pDemuxer->GetContainerFormat(), "matroska", 8) == 0))
+   || FilterInGraph(CLSID_MPCVideoDec, m_pGraph)
+   || FilterInGraph(CLSID_ffdshowDXVA, m_pGraph)
+   || FilterInGraphWithInputSubtype(CLSID_madVR, m_pGraph, MEDIASUBTYPE_WVC1)
+   || FilterInGraphWithInputSubtype(CLSID_DMOWrapperFilter, m_pGraph, MEDIASUBTYPE_WVC1);
 }
 
 STDMETHODIMP CLAVSplitter::SetSubstreamsEnabled(BOOL bSubStreams)
@@ -1068,26 +1310,15 @@ STDMETHODIMP_(BOOL) CLAVSplitter::GetVideoParsingEnabled()
   return m_settings.videoParsing;
 }
 
-STDMETHODIMP CLAVSplitter::SetAudioParsingEnabled(BOOL bEnabled)
+STDMETHODIMP CLAVSplitter::SetFixBrokenHDPVR(BOOL bEnabled)
 {
-  m_settings.audioParsing = bEnabled;
+  m_settings.FixBrokenHDPVR = bEnabled;
   return SaveSettings();
 }
 
-STDMETHODIMP_(BOOL) CLAVSplitter::GetAudioParsingEnabled()
+STDMETHODIMP_(BOOL) CLAVSplitter::GetFixBrokenHDPVR()
 {
-  return m_settings.audioParsing;
-}
-
-STDMETHODIMP CLAVSplitter::SetGeneratePTS(BOOL bEnabled)
-{
-  m_settings.generatePTS = bEnabled;
-  return SaveSettings();
-}
-
-STDMETHODIMP_(BOOL) CLAVSplitter::GetGeneratePTS()
-{
-  return m_settings.generatePTS;
+  return m_settings.FixBrokenHDPVR;
 }
 
 STDMETHODIMP_(BOOL) CLAVSplitter::IsFormatEnabled(const char *strFormat)
@@ -1104,8 +1335,20 @@ STDMETHODIMP_(HRESULT) CLAVSplitter::SetFormatEnabled(const char *strFormat, BOO
   std::string format(strFormat);
   if (m_settings.formats.find(format) != m_settings.formats.end()) {
     m_settings.formats[format] = bEnabled;
+    return SaveSettings();
   }
-  return S_OK;
+  return E_FAIL;
+}
+
+STDMETHODIMP CLAVSplitter::SetStreamSwitchRemoveAudio(BOOL bEnabled)
+{
+  m_settings.StreamSwitchRemoveAudio = bEnabled;
+  return SaveSettings();
+}
+
+STDMETHODIMP_(BOOL) CLAVSplitter::GetStreamSwitchRemoveAudio()
+{
+  return m_settings.StreamSwitchRemoveAudio;
 }
 
 STDMETHODIMP_(std::set<FormatInfo>&) CLAVSplitter::GetInputFormats()

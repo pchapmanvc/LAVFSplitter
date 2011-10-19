@@ -15,14 +15,19 @@ extern "C" {
 #define __STDC_CONSTANT_MACROS
 #include "libavformat/avformat.h"
 #include "libavutil/intreadwrite.h"
+#include "libavutil/pixdesc.h"
 
 #include "libbluray/bluray.h"
 }
+
+#include "libbluray/bdnav/clpi_parse.h"
 
 #include "util/log_control.h"
 
 #include "DShowUtil.h"
 #include <MMReg.h>
+
+#include <Shlwapi.h>
 
 
 // TODO: reference additional headers your program requires here
