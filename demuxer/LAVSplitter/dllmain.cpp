@@ -135,6 +135,24 @@ STDAPI DllRegisterServer()
 {
   std::list<LPCWSTR> chkbytes;
 
+  // LXF: header is 'LEITCH\0\0vvvvssss' where \0 is null, vvvv is header
+  // version and ssss is header size (little endian).
+  chkbytes.push_back(L"0,16,,4C45495443480000000000003C000000"); // old v0 60-byte header
+  chkbytes.push_back(L"0,16,,4C454954434800000100000048000000"); // new v1 72-byte header
+
+  RegisterSourceFilter(__uuidof(CLAVSplitterSource),
+    MEDIASUBTYPE_LAVLxf,
+    chkbytes,
+    L".lxf", NULL);
+
+  chkbytes.clear();
+
+  // GXF
+  RegisterSourceFilter(__uuidof(CLAVSplitterSource),
+    MEDIASUBTYPE_LAVGxf,
+    L"0,6,,0000000001bc,14,2,,e1e2",
+    L".gxf", NULL);
+
   // MKV/WEBM
   RegisterSourceFilter(CLSID_AsyncReader,
     MEDIASUBTYPE_Matroska,
@@ -233,6 +251,8 @@ STDAPI DllUnregisterServer()
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVOgg);
 
   // Current types
+  UnRegisterSourceFilter(MEDIASUBTYPE_LAVLxf);
+  UnRegisterSourceFilter(MEDIASUBTYPE_LAVGxf);
   UnRegisterSourceFilter(MEDIASUBTYPE_LAVBluRay);
 
   // Do not unregister default MS types, like MEDIASUBTYPE_Avi

@@ -213,6 +213,10 @@ WAVEFORMATEXTENSIBLE *CLAVFAudioHelper::CreateWFMTEX_RAW_PCM(const AVStream *avs
     dwChannelMask = wfe->nChannels == 2 ? (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT) : SPEAKER_FRONT_CENTER;
   } else if (wfe->nChannels > 2) {
     dwChannelMask = (DWORD)avstream->codec->channel_layout;
+    // >2 channels requires WAVE_FORMAT_EXTENSIBLE, so create an arbitrary
+    // channel mapping if none is available:
+    if (!dwChannelMask)
+      dwChannelMask = (1<<wfe->nChannels)-1;
   }
 
   if(dwChannelMask) {

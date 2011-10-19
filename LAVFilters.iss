@@ -45,6 +45,8 @@ Name: lavvideo64;    Description: LAV Video (x64);    Types: Normal; Check: IsWi
 Name: lavs32_avi;    Description: AVI;      GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
 Name: lavs32_bluray; Description: Blu-ray;  GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
 Name: lavs32_mkv;    Description: Matroska; GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
+Name: lavs32_lxf;    Description: LXF;      GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
+Name: lavs32_gxf;    Description: GXF;      GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
 Name: lavs32_mp4;    Description: MP4;      GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
 Name: lavs32_ogg;    Description: Ogg;      GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
 Name: lavs32_flv;    Description: FLV;      GroupDescription: "Use LAV Splitter (x86) for these file formats:"; Components: lavsplitter32
@@ -63,6 +65,8 @@ Name: lavs32_tta;    Description: TrueAudio;GroupDescription: "Use LAV Splitter 
 Name: lavs64_avi;    Description: AVI;      GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
 Name: lavs64_bluray; Description: Blu-ray;  GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
 Name: lavs64_mkv;    Description: Matroska; GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
+Name: lavs64_lxf;    Description: LXF;      GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
+Name: lavs64_gxf;    Description: GXF;      GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
 Name: lavs64_mp4;    Description: MP4;      GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
 Name: lavs64_ogg;    Description: Ogg;      GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
 Name: lavs64_flv;    Description: FLV;      GroupDescription: "Use LAV Splitter (x64) for these file formats:"; Components: lavsplitter64
@@ -228,6 +232,10 @@ begin
       ConfigureFormat(HKCU32, 'bluray', IsTaskSelected('lavs32_bluray'));
       DoExtension32('.bdmv', 'lavs32_bluray');
       DoExtension32('.mpls', 'lavs32_bluray');
+      ConfigureFormat(HKCU32, 'lxf', IsTaskSelected('lavs32_lxf'));
+      DoExtension32('.lxf', 'lavs32_lxf');
+      ConfigureFormat(HKCU32, 'gxf', IsTaskSelected('lavs32_gxf'));
+      DoExtension32('.gxf', 'lavs32_gxf');
       ConfigureFormat(HKCU32, 'mp4', IsTaskSelected('lavs32_mp4'));
       DoExtension32('.mp4', 'lavs32_mp4');
       DoExtension32('.mov', 'lavs32_mp4');
@@ -268,6 +276,10 @@ begin
       ConfigureFormat(HKCU64, 'bluray', IsTaskSelected('lavs64_bluray'));
       DoExtension64('.bdmv', 'lavs64_bluray');
       DoExtension64('.mpls', 'lavs64_bluray');
+      ConfigureFormat(HKCU64, 'lxf', IsTaskSelected('lavs64_lxf'));
+      DoExtension64('.lxf', 'lavs64_lxf');
+      ConfigureFormat(HKCU64, 'gxf', IsTaskSelected('lavs64_gxf'));
+      DoExtension64('.gxf', 'lavs64_gxf');
       ConfigureFormat(HKCU64, 'mp4', IsTaskSelected('lavs64_mp4'));
       DoExtension64('.mp4', 'lavs64_mp4');
       DoExtension64('.mov', 'lavs64_mp4');
